@@ -76,16 +76,25 @@ class TextHeatmap(Visualization):
             weight = self.__weights[i]
 
             rgb = self.__calculate_rgb(weight)
-            rgb_str = f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
 
             # Represent each word as <div> so it can be colored independently
-            html += f'<div class = "heatmaptext" style = "background-color: {rgb_str};">' + unit + '</div>'
+            html += f'<div class = "llmvis-text" style = "background-color: {rgb};">' + unit + '</div>'
 
+        rgb_start = self.__calculate_rgb(self.__min_weight)
+        rgb_mid = self.__calculate_rgb(0.0)
+        rgb_end = self.__calculate_rgb(self.__max_weight)
+
+        html += '</div>'
+        # Key
+        html += '<div style="margin: 25px">'
+        html += f'<div style="background-image: linear-gradient(to right, {rgb_start}, {rgb_mid}, {rgb_end}); padding: 9px;"></div>'
+        html += f'<div class="llmvis-text" style="float: left;">{self.__min_weight} (Least Important)</div>'
+        html += f'<div class="llmvis-text" style="float: right;">{self.__max_weight} (Most Important)</div>'
         html += '</div>'
 
         return html
     
-    def __calculate_rgb(self, weight: float) -> tuple[float, float, float]:
+    def __calculate_rgb(self, weight: float) -> str:
         """
         Calculate the corresponding RGB values that should be
         used for a given weight.
@@ -95,8 +104,8 @@ class TextHeatmap(Visualization):
                 calculate the RGB values
         
         Returns:
-            A tuple with 3 values for the red, green and blue values in the
-                range [0, 1]
+            A CSS string representation of this weight's RGB
+                values
         """
 
         rgb = (0.0, 0.0, 0.0)
@@ -123,4 +132,4 @@ class TextHeatmap(Visualization):
                    rgb_value - (rgb_value * other_vals),
                    rgb_value - (rgb_value * other_vals))
 
-        return rgb
+        return f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
