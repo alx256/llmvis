@@ -6,7 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from llmvis.core.unit_importance import Combinator
-from llmvis.visualization import start_visualization
+from llmvis.visualization import Visualizer
 from llmvis.visualization.visualization import TextHeatmap
 
 class Connection(abc.ABC):
@@ -16,6 +16,8 @@ class Connection(abc.ABC):
     Override this class to add support for LLMVis integrating with another
     service.
     """
+
+    __visualizer = Visualizer()
 
     def token_importance_gen(self, prompt: str):
         """
@@ -68,7 +70,7 @@ class Connection(abc.ABC):
         # Start the visualization
         heatmap = TextHeatmap(units = separated_prompt,
                               weights = combinator.get_shapley_values(similarities))
-        start_visualization(heatmap)
+        self.__visualizer.start_visualization(heatmap)
                 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
