@@ -1,5 +1,7 @@
 import abc
 
+BACKGROUND_RGB_VALUE = 69
+
 class Visualization(abc.ABC):
     """
     Base class for a Visualization. Used to define the HTML
@@ -74,10 +76,10 @@ class TextHeatmap(Visualization):
             weight = self.__weights[i]
 
             rgb = self.__calculate_rgb(weight)
-            rgb_str = f'rgb({rgb[0] * 255}, {rgb[1] * 255}, {rgb[2] * 255})'
+            rgb_str = f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
 
             # Represent each word as <div> so it can be colored independently
-            html += f'<div style = "background-color: {rgb_str};">' + unit + '</div>'
+            html += f'<div class = "heatmaptext" style = "background-color: {rgb_str};">' + unit + '</div>'
 
         html += '</div>'
 
@@ -107,10 +109,18 @@ class TextHeatmap(Visualization):
         if weight < 0.0:
             # Move from white to blue
             other_vals = weight / self.__min_weight
-            rgb = (1.0 - other_vals, 1.0 - other_vals, 1.0)
+            rgb_value = BACKGROUND_RGB_VALUE + ((255 - BACKGROUND_RGB_VALUE) * other_vals)
+
+            rgb = (rgb_value - (rgb_value * other_vals),
+                   rgb_value - (rgb_value * other_vals),
+                   rgb_value)
         else:
             # Move from white to red
             other_vals = weight / self.__max_weight
-            rgb = (1.0, 1.0 - other_vals, 1.0 - other_vals)
+            rgb_value = BACKGROUND_RGB_VALUE + ((255 - BACKGROUND_RGB_VALUE) * other_vals)
+
+            rgb = (rgb_value,
+                   rgb_value - (rgb_value * other_vals),
+                   rgb_value - (rgb_value * other_vals))
 
         return rgb

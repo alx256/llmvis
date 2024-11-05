@@ -5,7 +5,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 import sys
 from pathlib import Path
 
-from llmvis.visualization.visualization import Visualization
+from llmvis.visualization.visualization import Visualization, BACKGROUND_RGB_VALUE
 
 class Visualizer():
     """
@@ -39,7 +39,8 @@ class Visualizer():
         style = '<style>' + style_path.open().read() + '</style>' + '\n'
         prelude = prelude_path.open().read() + '\n'
 
-        html = prelude + style + '<html><body>' + visualization.get_html() + '</body></html>'
+        rgb = f'rgb({BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE})'
+        html = prelude + style + f'<html><body style="background-color: {rgb};">' + visualization.get_html() + '</body></html>'
 
         if 'zmqshell' in environment:
             # Jupyter Notebook
