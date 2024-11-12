@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
-from llmvis.visualization.visualization import TextHeatmap
+from llmvis.visualization.visualization import Unit, TextHeatmap
 
 class Connection(abc.ABC):
     """
@@ -68,8 +68,12 @@ class Connection(abc.ABC):
         similarities = cosine_similarity(vectors[0].reshape(1, -1), vectors[1:]).flatten()
         
         # Start the visualization
-        heatmap = TextHeatmap(units = separated_prompt,
-                              weights = combinator.get_shapley_values(similarities))
+        shapley_vals = combinator.get_shapley_values(similarities)
+        units = [Unit(separated_prompt[i], shapley_vals[i],
+                      [('Shapley Value', shapley_vals[i]),
+                       ('Generated Prompt', responses[i + 1])])
+                    for i in range(len(separated_prompt))]
+        heatmap = TextHeatmap(units)
         self.__visualizer.start_visualization(heatmap)
                 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:

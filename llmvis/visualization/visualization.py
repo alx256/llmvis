@@ -1,22 +1,118 @@
 import abc
+import re
+
+from llmvis.visualization.linked_files import relative_file_read
 
 BACKGROUND_RGB_VALUE = 69
 
-class Visualization(abc.ABC):
+def escape_all(string: str) -> str:
     """
-    Base class for a Visualization. Used to define the HTML
-    representation of a specific visualization so it can
+    Given a string, return a new string with necessary special characters
+    escaped. Used for escaping strings so that they can safely be
+    inserted into JavaScript code stored in a string.
+
+    Args:
+        string (str): The string that should necessary special characters
+            escaped.
+
+    Returns:
+        A new string with necessary special characters escaped.
+    """
+    return re.sub(r'([\'\n"\\])', r'\\\1', string)
+
+class Unit():
+    """
+    An individual unit that will be shown by the `TextHeatmap`
+    visualization. This is commonly a full word, but smaller
+    components of words or large clusters of words can be
+    units too.
+    """
+
+    def __init__(self, text: str, weight: float,
+                 details: list[tuple[str, any]]):
+        """
+        Create a new `Unit`.
+
+        Args:
+            text (str): The text contents of the unit. This is
+                what will be shown in the heatmap.
+            weight (float): A numerical weight representing
+                the color of the unit when it is displayed on
+                the heatmap. Positive values are shown as red
+                with higher values being stronger shades of red
+                while negative values are shown as blue with
+                lower values being stronger shades of blue.
+            details (list[tuple[str, any]]): A list containing
+                all the details of the unit. This represents
+                additional information that should be shown when
+                the user hovers or clicks on the unit. Each element
+                should be a tuple where the first element is the
+                name of the detail and the second is the associated
+                data.
+        """
+        self.text = text
+        self.weight = weight
+        self.details = details
+    
+    def get_js(self):
+        """
+        Get a JavaScript representation of this `Unit`.
+
+        Returns:
+            A JavaScript representation of this `Unit` as an object
+            containing the attributes of the `Unit`. Note that
+            details is encoded as 2D list instead of a list of
+            tuples which is its initial representation due to
+            JavaScript not supporting tuples.
+        """
+
+        js = '{'
+        js += f'text:\'{escape_all(self.text)}\','
+        js += f'weight:\'{escape_all(str(self.weight))}\','
+        js += 'details: ['
+
+        for i, detail in enumerate(self.details):
+            js += f'[\'{escape_all(str(detail[0]))}\', \'{escape_all(str(detail[1]))}\']'
+
+            if i < len(self.details) - 1:
+                js += ','
+
+        js += ']}'
+
+        return js
+
+class Visualization(abc.ABC):
+    WIDTH = 600
+    HEIGHT = 300
+
+    """
+    Base class for a visualization. Used to define the HTML
+    representation of a specific `Visualization` so it can
     be rendered.
     """
 
     @abc.abstractmethod
     def get_html(self) -> str:
         """
-        Get the HTML representation of this Visualization.
+        Get the HTML representation of this `Visualization`.
 
         Returns:
             A string containing the HTML representation of this
-                Visualization
+                `Visualization`.
+        """
+
+        pass
+
+    @abc.abstractmethod
+    def get_js(self) -> str:
+        """
+        Get the JavaScript representation of this `Visualization`.
+        Used to provide the code for drawing to the canvas provided
+        by `get_html` (if this visualization uses a canvas).
+
+        Returns:
+            A string containing the JavaScript representation of
+                this `Visualization`. 
         """
 
         pass
@@ -28,29 +124,27 @@ class TextHeatmap(Visualization):
     on a corresponding weight.
     """
 
-    def __init__(self, units: list[str], weights: list[float]):
+    def __init__(self, units: list[Unit]):
         """
-        Create a new TextHeatmap for a provided list of units
-        and corresponding list of weights. Note that the units
-        and weights lists must be the same length so that there
-        is a one-to-one mapping between each unit and its
-        weight.
+        Create a new `TextHeatmap` for a provided list of `Unit`s.
 
         Args:
-            units (list[str]): A list of units (such as words) that
+            units (list[Unit]): A list of `Unit`s (such as words) that
                 make up the chunk of text that should be
-                visualized
-            weights (list[float]): A list of floats corresponding to
-                each unit, determining the coloring of it. Each weight
-                can be positive or negative with more positive weights
-                being hotter and more negative weights being colder.
+                visualized.
         """
 
         self.__units = units
-        self.__weights = weights
 
-        max_weight = max(weights)
-        min_weight = min(weights)
+        max_weight = None
+        min_weight = None
+
+        for unit in units:
+            if max_weight == None or max_weight < unit.weight:
+                max_weight = unit.weight
+            
+            if min_weight == None or min_weight > unit.weight:
+                min_weight = unit.weight
 
         # We want the scaling to be the same for positive and
         # negative values. This is because if the highest
@@ -62,74 +156,36 @@ class TextHeatmap(Visualization):
         # the absolute min and max values and find which is higher
         # and use this and the negative of this as the max and
         # min values.
-        max_weight = max(weights)
-        min_weight = min(weights)
         largest_abs = max(abs(max_weight), abs(min_weight))
         self.__max_weight = largest_abs
         self.__min_weight = -largest_abs
 
     def get_html(self) -> str:
-        html = '<div style = "display: flex; gap: 7px; flex-wrap: wrap; font-size: xx-large;">'
+        font_size = 50
+        spacing = 10
 
-        for i in range(len(self.__units)):
-            unit = self.__units[i]
-            weight = self.__weights[i]
-
-            rgb = self.__calculate_rgb(weight)
-
-            # Represent each word as <div> so it can be colored independently
-            html += f'<div class = "llmvis-text" style = "background-color: {rgb};">' + unit + '</div>'
-
-        rgb_start = self.__calculate_rgb(self.__min_weight)
-        rgb_mid = self.__calculate_rgb(0.0)
-        rgb_end = self.__calculate_rgb(self.__max_weight)
-
-        html += '</div>'
-        # Key
-        html += '<div style="margin: 25px">'
-        html += f'<div style="background-image: linear-gradient(to right, {rgb_start}, {rgb_mid}, {rgb_end}); padding: 9px;"></div>'
-        html += f'<div class="llmvis-text" style="float: left;">{self.__min_weight} (Least Important)</div>'
-        html += f'<div class="llmvis-text" style="float: right;">{self.__max_weight} (Most Important)</div>'
-        html += '</div>'
+        html = f'<canvas id="llmvis-heatmap-canvas" width="{self.WIDTH}" height="{self.HEIGHT}" style="background-color: rgb({BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE});">'
+        html += '</canvas>'
 
         return html
     
-    def __calculate_rgb(self, weight: float) -> str:
-        """
-        Calculate the corresponding RGB values that should be
-        used for a given weight.
+    def get_js(self):
+        js = relative_file_read('js/heatmap.js')
 
-        Args:
-            weight (float): The weight that will be used to
-                calculate the RGB values
+        js += 'units=['
+
+        for i, unit in enumerate(self.__units):
+            js += unit.get_js()
+            if i < len(self.__units) - 1:
+                js += ','
         
-        Returns:
-            A CSS string representation of this weight's RGB
-                values
-        """
+        js += '];'
 
-        rgb = (0.0, 0.0, 0.0)
-
-        # Values near 0 should be closer to white while values
-        # near the max or min weights should be closer to red
-        # or to blue respectively. For RGB values this is done
-        # by keeping red/blue as the max (1.0) and moving the
-        # other values away from 1.0 accordingly.
-        if weight < 0.0:
-            # Move from white to blue
-            other_vals = weight / self.__min_weight
-            rgb_value = BACKGROUND_RGB_VALUE + ((255 - BACKGROUND_RGB_VALUE) * other_vals)
-
-            rgb = (rgb_value - (rgb_value * other_vals),
-                   rgb_value - (rgb_value * other_vals),
-                   rgb_value)
-        else:
-            # Move from white to red
-            other_vals = weight / self.__max_weight
-            rgb_value = BACKGROUND_RGB_VALUE + ((255 - BACKGROUND_RGB_VALUE) * other_vals)
-
-            rgb = (rgb_value,
-                   rgb_value - (rgb_value * other_vals),
-                   rgb_value - (rgb_value * other_vals))
-
-        return f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
+        js += f'minWeight={self.__min_weight};'
+        js += f'maxWeight={self.__max_weight};'
+        
+        js += 'loadFonts().then(function() {'
+        js += 'calculateCanvasSize();'
+        js += 'drawHeatmap();'
+        js += '});'
+        return js

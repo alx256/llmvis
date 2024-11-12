@@ -1,11 +1,12 @@
 from IPython import get_ipython
-from IPython.display import HTML
+from IPython.display import display, HTML, Javascript
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import sys
-from pathlib import Path
+import tempfile
 
 from llmvis.visualization.visualization import Visualization, BACKGROUND_RGB_VALUE
+from llmvis.visualization.linked_files import read_html, read_css
 
 class Visualizer():
     """
@@ -29,22 +30,30 @@ class Visualizer():
         """
 
         environment = str(type(get_ipython()))
-
-        # Calculate the relative path for the visualization/ directory
-        root_path = Path(__file__).parent
-        style_path = root_path / 'css/style.css'
-        prelude_path = root_path / 'html/prelude.html'
+        is_jupyter = 'zmqshell' in environment
 
         # Embed CSS directly into the HTML
-        style = '<style>' + style_path.open().read() + '</style>' + '\n'
-        prelude = prelude_path.open().read() + '\n'
-
+        style = read_css('css/style.css')
+        prelude = read_html('html/prelude.html')
         rgb = f'rgb({BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE})'
-        html = prelude + style + f'<html><body style="background-color: {rgb};">' + visualization.get_html() + '</body></html>'
 
-        if 'zmqshell' in environment:
+        html = '<html>'
+        html += '<head>'
+        html += prelude
+        html += style
+        html += '</head>'
+        # html += font
+        html += f'<body style="background-color: {rgb};">'
+        html += visualization.get_html()
+        if not is_jupyter:
+            html += '<script>' + visualization.get_js() + '</script>'
+        html += '</body>'
+        html += '</html>'
+
+        if is_jupyter:
             # Jupyter Notebook
-            return HTML(data = html)
+            display(HTML(html))
+            display(Javascript(visualization.get_js()))
         else:
             # Terminal
             web = QWebEngineView()
