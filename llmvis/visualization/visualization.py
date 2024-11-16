@@ -3,8 +3,6 @@ import re
 
 from llmvis.visualization.linked_files import relative_file_read
 
-BACKGROUND_RGB_VALUE = 69
-
 def escape_all(string: str) -> str:
     """
     Given a string, return a new string with necessary special characters
@@ -164,7 +162,7 @@ class TextHeatmap(Visualization):
         font_size = 50
         spacing = 10
 
-        html = f'<canvas id="llmvis-heatmap-canvas" width="{self.WIDTH}" height="{self.HEIGHT}" style="background-color: rgb({BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE});">'
+        html = f'<canvas id="llmvis-heatmap-canvas" width="{self.WIDTH}" height="{self.HEIGHT}">'
         html += '</canvas>'
 
         return html

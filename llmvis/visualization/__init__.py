@@ -4,7 +4,7 @@ import os
 import pathlib
 import webbrowser
 
-from llmvis.visualization.visualization import Visualization, BACKGROUND_RGB_VALUE
+from llmvis.visualization.visualization import Visualization
 from llmvis.visualization.linked_files import read_html, read_css
 
 class Visualizer():
@@ -32,7 +32,7 @@ class Visualizer():
         # Embed CSS directly into the HTML
         style = read_css('css/style.css')
         prelude = read_html('html/prelude.html')
-        rgb = f'rgb({BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE}, {BACKGROUND_RGB_VALUE})'
+        rgb = f'rgb(23, 21, 33)'
 
         html = '<html>'
         html += '<head>'
