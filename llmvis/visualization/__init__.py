@@ -1,9 +1,8 @@
 from IPython import get_ipython
 from IPython.display import display, HTML, Javascript
-from PyQt6.QtWidgets import QApplication, QMainWindow
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-import sys
-import tempfile
+import os
+import pathlib
+import webbrowser
 
 from llmvis.visualization.visualization import Visualization, BACKGROUND_RGB_VALUE
 from llmvis.visualization.linked_files import read_html, read_css
@@ -13,8 +12,6 @@ class Visualizer():
     Used to visualize some data either in a Jupyter notebook
     environment or as a standalone window.
     """
-
-    __app = QApplication(sys.argv)
 
     def start_visualization(self, visualization: Visualization):
         """
@@ -42,7 +39,6 @@ class Visualizer():
         html += prelude
         html += style
         html += '</head>'
-        # html += font
         html += f'<body style="background-color: {rgb};">'
         html += visualization.get_html()
         if not is_jupyter:
@@ -55,9 +51,14 @@ class Visualizer():
             display(HTML(html))
             display(Javascript(visualization.get_js()))
         else:
-            # Terminal
-            web = QWebEngineView()
-            web.setWindowTitle('LLMVis')
-            web.setHtml(html)
-            web.show()
-            Visualizer.__app.exec()
+            # Write the HTML data to a file first so we can just open
+            # this using the browser
+            llmvis_dir = pathlib.Path.home() / '.llmvis'
+
+            if not os.path.isdir(llmvis_dir):
+                os.mkdir(llmvis_dir)
+
+            out = llmvis_dir / 'out.html'
+            out.write_text(html)
+
+            webbrowser.open(f'file://{out}')
