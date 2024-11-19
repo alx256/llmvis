@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
-from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap
+from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud
 
 class Connection(abc.ABC):
     """
@@ -82,8 +82,9 @@ class Connection(abc.ABC):
                                      headers = ['Prompt', 'Model Response'],
                                      weights = [0.0] + shapley_vals)
         text_heatmap = TextHeatmap(units)
-        
-        self.__visualizer.start_visualizations([table_heatmap, text_heatmap])
+        tag_cloud = TagCloud(units)
+
+        self.__visualizer.start_visualizations([table_heatmap, text_heatmap, tag_cloud])
 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """

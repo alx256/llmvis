@@ -311,3 +311,47 @@ class TableHeatmap(Visualization):
             rgb = [rgb_value, rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals)]
 
         return f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
+
+class TagCloud(Visualization):
+    """
+    A "Tag Cloud" `Visualization` (also known as a word cloud). Used to
+    visualize some `Unit`s by showing ones with higher weights as bigger
+    and ones with lower weights as smaller.
+    """
+
+    def __init__(self, units: list[Unit]):
+        """
+        Create a new `TagCloud` `Visualization` from a list of `Unit`s.
+
+        Args:
+            units (list[Unit]): The list of units which will be visualized
+                by this `TagCloud`.
+        """
+        self.__units = units
+
+    def get_name(self):
+        return 'Tag Cloud'
+
+    def get_html(self):
+        html = f'<canvas id="llmvis-tagcloud-canvas" width="{self.WIDTH}" height="{self.HEIGHT}">'
+        html += '</canvas>'
+
+        return html
+
+    def get_js(self):
+        js = relative_file_read('js/tag_cloud.js')
+
+        js += 'tagCloudUnits=['
+
+        for i, unit in enumerate(self.__units):
+            js += unit.get_js()
+            if i < len(self.__units) - 1:
+                js += ','
+
+        js += '];'
+
+        js += 'loadFonts().then(function(){'
+        js += 'drawTagCloud();'
+        js += '});'
+
+        return js

@@ -97,6 +97,7 @@ class Visualizer():
         script = ''
 
         # Add required scripts
+        script += relative_file_read('js/core.js')
         script += relative_file_read('js/tabs.js')
 
         # Add any scripts from visualizations
