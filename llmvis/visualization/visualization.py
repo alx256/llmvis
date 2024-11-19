@@ -90,6 +90,18 @@ class Visualization(abc.ABC):
     """
 
     @abc.abstractmethod
+    def get_name(self) -> str:
+        """
+        Get the name of this `Visualization`. Useful for cases
+        where a nicely formatted, descriptive name of this
+        `Visualization` is needed.
+
+        Returns:
+            A string containing the name of this `Visualization`.
+        """
+        pass
+
+    @abc.abstractmethod
     def get_html(self) -> str:
         """
         Get the HTML representation of this `Visualization`.
@@ -158,6 +170,9 @@ class TextHeatmap(Visualization):
         self.__max_weight = largest_abs
         self.__min_weight = -largest_abs
 
+    def get_name(self) -> str:
+        return 'Text Heatmap'
+
     def get_html(self) -> str:
         font_size = 50
         spacing = 10
@@ -187,3 +202,112 @@ class TextHeatmap(Visualization):
         js += 'drawHeatmap();'
         js += '});'
         return js
+    
+class TableHeatmap(Visualization):
+    """
+    A heatmap in the form of a table containing a number of rows
+    and each row is colored depending on a corresponding weight.
+    """
+
+    GREY_VALUE = 61
+
+    def __init__(self, headers: list[str], contents: list[list[str]], weights: list[int]):
+        """
+        Create a new `TableHeatmap` for some provided content and weights.
+
+        Args:
+            headers (list[str]): A list of strings where each string corresponds to the
+                header for the corresponding column. Length must be equal to the length
+                of each row (i.e. the number of columns).
+            contents (list[list[str]]): A list where each element represents a row,
+                containing another list with the content that should be contained in
+                the table.
+            weights (list[int]): A list where each integer corresponds to the weight for
+                the corresponding row. Length must be equal to the length of `contents`.
+        
+        Raises:
+            `ValueError` if the lengths of the provided arguments are incorrect or if the table is empty.
+        """
+
+        if len(contents) == 0:
+            raise ValueError('Table cannot be empty!')
+
+        if len(weights) != len(contents):
+            raise ValueError('contents and weights must be the same length!')
+
+        if len(headers) != len(contents[0]):
+            raise ValueError('headers must be equal to the number of columns!')
+
+        self.__headers = headers
+        self.__contents = contents
+        self.__weights = weights
+
+        # Explanation for doing this explained in TextHeatmap above
+        largest_abs = max(abs(max(weights)), abs(min(weights)))
+        self.__max_weight = largest_abs
+        self.__min_weight = -largest_abs
+    
+    def get_name(self) -> str:
+        return 'Table Heatmap'
+
+    def get_html(self):
+        html = '<table>'
+        html += '<colgroup>'
+        html += '<col span="1" style="width: 25%;">'
+        html += '<col span="1" style="width: 75%;">'
+        html += '</colgroup>'
+
+        html += '<tbody>'
+        html += '<tr>'
+        for cell in self.__headers:
+            html += '<th>'
+            html += '<div class="llmvis-text">'
+            html += cell
+            html += '</div>'
+            html += '</th>'
+        html += '</tr>'
+        for i, content in enumerate(self.__contents):
+            html += '<tr>'
+            for entry in content:
+                bg = self.__get_background_color(self.__weights[i])
+                html += f'<td style="background-color: {bg};">'
+                html += '<div class="llmvis-text">'
+                html += entry
+                html += '</div>'
+                html += '</td>'
+            html += '</tr>'
+        html += '</tbody>'
+        html += '</table>'
+
+        return html
+
+    def get_js(self):
+        return ''
+
+    def __get_background_color(self, weight: int) -> str:
+        """
+        Calculate the necessary background color for a row
+        based on a provided weight.
+
+        Args:
+            weight (int): The weight that should be used for
+                calculating the background color.
+        
+        Returns:
+            A string representing the CSS `background-color`
+            property that should be used for coloring the row
+            with this weight.
+        """
+
+        rgb = [0.0, 0.0, 0.0]
+
+        if weight < 0.0:
+            other_vals = weight / self.__min_weight
+            rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
+            rgb = [rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals), rgb_value]
+        else:
+            other_vals = weight / self.__max_weight
+            rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
+            rgb = [rgb_value, rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals)]
+
+        return f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'

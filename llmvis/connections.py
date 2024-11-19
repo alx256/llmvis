@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
-from llmvis.visualization.visualization import Unit, TextHeatmap
+from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap
 
 class Connection(abc.ABC):
     """
@@ -56,9 +56,12 @@ class Connection(abc.ABC):
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
         separated_prompt = prompt.split(' ')
         combinator = Combinator(separated_prompt)
+        requests = [prompt]
 
         for combination in combinator.get_combinations():
-            responses.append(self.__make_request(self.__flatten_words(combination, delimiter = ' ')))
+            request = self.__flatten_words(combination, delimiter = ' ')
+            requests.append(request)
+            responses.append(self.__make_request(request))
 
         # Calculate TF-IDF representation of each response
         vectorizer = TfidfVectorizer()
@@ -73,9 +76,15 @@ class Connection(abc.ABC):
                       [('Shapley Value', shapley_vals[i]),
                        ('Generated Prompt', responses[i + 1])])
                     for i in range(len(separated_prompt))]
-        heatmap = TextHeatmap(units)
-        self.__visualizer.start_visualization(heatmap)
-                
+        table_contents = [[requests[i], responses[i]] for i in range(len(responses))]
+
+        table_heatmap = TableHeatmap(contents = table_contents,
+                                     headers = ['Prompt', 'Model Response'],
+                                     weights = [0.0] + shapley_vals)
+        text_heatmap = TextHeatmap(units)
+        
+        self.__visualizer.start_visualizations([table_heatmap, text_heatmap])
+
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
         Flatten a list of unit strings into a singular string

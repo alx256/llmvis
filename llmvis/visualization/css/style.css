@@ -5,3 +5,32 @@
     user-select: none;
     color: rgb(191, 191, 191);
 }
+
+#llmvis-tabs-container {
+    display: table;
+    overflow: hidden;
+    background-color: rgb(48, 45, 54);
+    height: 8%;
+    width: 100%;
+}
+
+.llmvis-tabs {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.llmvis-tab {
+    padding: 10px;
+    text-decoration: none;
+    border: none;
+    border-radius: 24px;
+    background-color: transparent;
+}
+
+.llmvis-tab:hover {
+    background-color: rgb(132, 132, 132);
+}
+
+.llmvis-tab.selected {
+    background-color: rgb(111, 113, 140);
+}
