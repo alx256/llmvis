@@ -40,7 +40,7 @@ function drawTagCloud() {
     const DIVISOR = Math.abs(MAX) + (MIN < 0) ? Math.abs(MIN) : 0;
     const ADDER = (MIN < 0) ? Math.abs(MIN) : 0;
     const MIN_FONT_SIZE = 20;
-    const MAX_FONT_SIZE = 90;
+    const MAX_FONT_SIZE = 60;
     const SHOWED_UNITS = tagCloudUnits;
 
     var memory = [];
