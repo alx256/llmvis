@@ -17,8 +17,6 @@ class Connection(abc.ABC):
     service.
     """
 
-    __visualizer = Visualizer()
-
     def token_importance_gen(self, prompt: str):
         """
         Calculate the token importance of a given prompt by
@@ -38,17 +36,21 @@ class Connection(abc.ABC):
 
         # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
     
-    def word_importance_gen_shapley(self, prompt: str, sampling_ratio: float = 0.5):
+    def word_importance_gen_shapley(self, prompt: str, sampling_ratio: float = 0.5) -> Visualizer:
         """
         Calculate the importance of each word in a given prompt
         using the TokenSHAP algorithm (see https://arxiv.org/html/2407.10114v2)
-        and display a visualization of this.
+        and get a `Visualizer` visualizing this of this.
 
         Args:
             prompt (str): The prompt that should have its
                 word importance calculated
             sampling_ratio (float): How many random samples should
                 be carried out (0.0 for none)
+        
+        Returns:
+            A `Visualizer` showing a table heatmap, a text heatmap and a tag cloud
+            for the importance of each word.
         """
 
         # Start responses
@@ -84,7 +86,7 @@ class Connection(abc.ABC):
         text_heatmap = TextHeatmap(units)
         tag_cloud = TagCloud(units)
 
-        self.__visualizer.start_visualizations([table_heatmap, text_heatmap, tag_cloud])
+        return Visualizer([table_heatmap, text_heatmap, tag_cloud])
 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
