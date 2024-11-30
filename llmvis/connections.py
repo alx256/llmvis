@@ -47,7 +47,7 @@ class Connection(abc.ABC):
                 word importance calculated
             sampling_ratio (float): How many random samples should
                 be carried out (0.0 for none)
-        
+
         Returns:
             A `Visualizer` showing a table heatmap, a text heatmap and a tag cloud
             for the importance of each word.
@@ -88,6 +88,41 @@ class Connection(abc.ABC):
 
         return Visualizer([table_heatmap, text_heatmap, tag_cloud])
 
+    def word_importance_embed_shapley(self, prompt: str) -> Visualizer:
+        """
+        Calculate the importance of each word in a given prompt
+        using embeddings to approximate the importance of each
+        word in the sentence and get a `Visualizer` visualizing
+        this.
+
+        Args:
+            prompt (str): The prompt that should have its word
+                importance calculated
+
+        Returns:
+            A `Visualizer` showing a text heatmap and tag cloud
+            for the importance of each word.
+        """
+
+        separated_prompt = prompt.split(' ')
+        combinator = Combinator(separated_prompt)
+
+        requests = [prompt] + [self.__flatten_words(combination, delimiter = ' ')
+                                for combination in combinator.get_combinations()]
+        embeddings = self.__calculate_embeddings(requests)
+
+        similarities = cosine_similarity([embeddings[0]], embeddings[1:]).flatten()
+        shapley_vals = combinator.get_shapley_values(similarities)
+        units = [Unit(separated_prompt[i], shapley_vals[i],
+                        [('Shapley Value', shapley_vals[i]),
+                         ('Embedding', embeddings[i + 1])])
+                    for i in range(len(separated_prompt))]
+
+        text_heatmap = TextHeatmap(units)
+        tag_cloud = TagCloud(units)
+
+        return Visualizer([text_heatmap, tag_cloud])
+
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
         Flatten a list of unit strings into a singular string
@@ -122,6 +157,21 @@ class Connection(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def __calculate_embeddings(self, prompts: list[str]) -> list[list[float]]:
+        """
+        Calculate the embeddings for a given list of prompts.
+
+        Args:
+            prompts (list[str]): The prompts that should be given to
+                the connected model to calculate the embeddings for
+
+        Returns:
+            A 2D list of floats containing the embeddings for each prompt.
+        """
+
+        pass
+
 class OllamaConnection(Connection):
     _model_name = ""
 
@@ -142,4 +192,7 @@ class OllamaConnection(Connection):
             raise RuntimeError(model_name + ' was not able to be pulled. Check that it is a supported model.')
     
     def _Connection__make_request(self, prompt: str) -> str:
-        return ollama.generate(model = self._model_name, prompt = prompt)['response']
+        return ollama.generate(model = self._model_name, prompt = prompt).response
+
+    def _Connection__calculate_embeddings(self, prompts: list[str]) -> list[list[float]]:
+        return ollama.embed(model = self._model_name, input = prompts).embeddings
