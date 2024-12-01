@@ -1,5 +1,6 @@
 import abc
 import re
+from numpy.typing import ArrayLike
 
 from llmvis.visualization.linked_files import relative_file_read
 
@@ -126,6 +127,25 @@ class Visualization(abc.ABC):
         """
 
         pass
+
+    def call_function(self, func: str) -> str:
+        """
+        Get the JavaScript code to load fonts and then call a
+        provided function immediately afterwards.
+
+        Args:
+            func (str): The name of the function that should be
+                called.
+
+        Returns:
+            A string containing the JavaScript code that loads the
+                necessary fonts and calls the function when this is
+                done.
+        """
+        js = 'loadFonts().then(function(){'
+        js += f'{func}();'
+        js += '});'
+        return js
 
 class TextHeatmap(Visualization):
     """
@@ -349,9 +369,40 @@ class TagCloud(Visualization):
                 js += ','
 
         js += '];'
+        js += self.call_function('drawTagCloud')
 
-        js += 'loadFonts().then(function(){'
-        js += 'drawTagCloud();'
-        js += '});'
+        return js
+
+class ScatterPlot(Visualization):
+    """
+    A Scatter Plot for some data. This will visualize
+    an array-like object of 2D points in 2D space.
+    """
+
+    def __init__(self, plots: ArrayLike):
+        """
+        Create a new `ScatterPlot` `Visualization` from a
+        2D array of plots. The plots should be an array-like
+        structure in which each element is an array-like
+        structure containing 2 elements representing a point
+        in 2D space with the first element being the x
+        co-ordinate and the second being the y co-ordinate.
+        """
+
+        self.__plots = plots
+
+    def get_name(self):
+        return 'Scatter Plot'
+
+    def get_html(self):
+        html = f'<canvas id="llmvis-scatterplot-canvas" width="700" height="700">'
+        html += '</canvas>'
+
+        return html
+
+    def get_js(self):
+        js = relative_file_read('js/scatter_plot.js')
+        js += f'scatterPlotPlots={self.__plots.tolist()};'
+        js += self.call_function('drawScatterPlot')
 
         return js

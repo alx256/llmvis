@@ -1,13 +1,15 @@
 import abc
 import asyncio
 import ollama
+import numpy as np
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
 
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
-from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud
+from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud, ScatterPlot
 
 class Connection(abc.ABC):
     """
@@ -109,19 +111,32 @@ class Connection(abc.ABC):
 
         requests = [prompt] + [self.__flatten_words(combination, delimiter = ' ')
                                 for combination in combinator.get_combinations()]
-        embeddings = self.__calculate_embeddings(requests)
+        embeddings = []
 
-        similarities = cosine_similarity([embeddings[0]], embeddings[1:]).flatten()
+        for i, request in enumerate(requests):
+            print(f'Calculating {i}/{len(requests)}...')
+            embeddings.append(self.__calculate_embeddings(request)[0])
+
+        embeddings = np.array(embeddings)
+
+        similarities = cosine_similarity(embeddings[0].reshape(1, -1), embeddings[1:]).flatten()
         shapley_vals = combinator.get_shapley_values(similarities)
         units = [Unit(separated_prompt[i], shapley_vals[i],
                         [('Shapley Value', shapley_vals[i]),
                          ('Embedding', embeddings[i + 1])])
                     for i in range(len(separated_prompt))]
 
+        # Use PCA to reduce dimensionality to suppress noise and speed up
+        # computations (per scikit-learn recommendations
+        # https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
+        pca = PCA(n_components = 2)
+        reduced = pca.fit_transform(embeddings)
+
         text_heatmap = TextHeatmap(units)
         tag_cloud = TagCloud(units)
+        scatter_plot = ScatterPlot(reduced)
 
-        return Visualizer([text_heatmap, tag_cloud])
+        return Visualizer([text_heatmap, tag_cloud, scatter_plot])
 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
