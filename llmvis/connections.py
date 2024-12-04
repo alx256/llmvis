@@ -62,10 +62,15 @@ class Connection(abc.ABC):
         combinator = Combinator(separated_prompt)
         requests = [prompt]
 
-        for combination in combinator.get_combinations():
+        for i, combination in enumerate(combinator.get_combinations()):
             request = self.__flatten_words(combination, delimiter = ' ')
-            requests.append(request)
             responses.append(self.__make_request(request))
+
+            combination_local = combination.copy()
+            combination_local.insert(i, '_' * len(separated_prompt[i]))
+            formatted_request = self.__flatten_words(combination_local, delimiter = ' ')
+
+            requests.append(formatted_request)
 
         # Calculate TF-IDF representation of each response
         vectorizer = TfidfVectorizer()
@@ -80,10 +85,13 @@ class Connection(abc.ABC):
                       [('Shapley Value', shapley_vals[i]),
                        ('Generated Prompt', responses[i + 1])])
                     for i in range(len(separated_prompt))]
-        table_contents = [[requests[i], responses[i]] for i in range(len(responses))]
+        table_contents = [[requests[i], responses[i],
+            separated_prompt[i - 1] if i > 0 else 'N/A',
+            str(shapley_vals[i - 1]) if i > 0 else 'N/A',
+            str(similarities[i - 1]) if i > 0 else 'N/A'] for i in range(len(responses))]
 
         table_heatmap = TableHeatmap(contents = table_contents,
-                                     headers = ['Prompt', 'Model Response'],
+                                     headers = ['Prompt', 'Model Response', 'Missing Term', 'Shapley Value', 'Cosine Difference'],
                                      weights = [0.0] + shapley_vals)
         text_heatmap = TextHeatmap(units)
         tag_cloud = TagCloud(units)
