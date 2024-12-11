@@ -10,6 +10,7 @@ setup(
     long_description_content_type = 'text/markdown',
     packages = ['llmvis'] + ['llmvis.' + pkg for pkg in find_packages('llmvis')],
     package_data = {
-        'llmvis.visualization': ["css/*.css", "html/*.html", "js/*.js"]
+        'llmvis' : ['assets/fonts/*'],
+        'llmvis.visualization': ['css/*.css', 'html/*.html', 'js/*.js']
     }
 )

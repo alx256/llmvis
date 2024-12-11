@@ -2,7 +2,7 @@ import abc
 import re
 from numpy.typing import ArrayLike
 
-from llmvis.visualization.linked_files import relative_file_read
+from llmvis.core.linked_files import relative_file_read
 
 def escape_all(string: str) -> str:
     """
@@ -203,7 +203,7 @@ class TextHeatmap(Visualization):
         return html
     
     def get_js(self):
-        js = relative_file_read('js/heatmap.js')
+        js = relative_file_read('visualization/js/heatmap.js')
 
         js += 'units=['
 
@@ -359,7 +359,7 @@ class TagCloud(Visualization):
         return html
 
     def get_js(self):
-        js = relative_file_read('js/tag_cloud.js')
+        js = relative_file_read('visualization/js/tag_cloud.js')
 
         js += 'tagCloudUnits=['
 
@@ -401,7 +401,7 @@ class ScatterPlot(Visualization):
         return html
 
     def get_js(self):
-        js = relative_file_read('js/scatter_plot.js')
+        js = relative_file_read('visualization/js/scatter_plot.js')
         js += f'scatterPlotPlots={self.__plots.tolist()};'
         js += self.call_function('drawScatterPlot')
 
