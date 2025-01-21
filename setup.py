@@ -12,5 +12,11 @@ setup(
     package_data = {
         'llmvis' : ['assets/fonts/*'],
         'llmvis.visualization': ['css/*.css', 'html/*.html', 'js/*.js']
-    }
+    },
+    install_requires = [
+        'ollama',
+        'numpy',
+        'scikit-learn',
+        'IPython'
+    ]
 )
