@@ -12,6 +12,14 @@ const SCATTER_PLOT_Y_AXIS_X = SCATTER_PLOT_CANVAS.width / 2;
 const SCATTER_PLOT_PLOT_RADIUS = 3;
 const SCATTER_PLOT_STEP_COUNT = 20;
 const SCATTER_PLOT_MARKING_LENGTH = 5;
+const SCATTER_PLOT_MAXIMUM_NUMBER_LENGTH = 4;
+const SCATTER_PLOT_EXPONENT_FRACTION_DIGITS = 2;
+const SCATTER_PLOT_MARKINGS_MATRIX = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+];
 
 var scatterPlotPlots;
 
@@ -56,6 +64,16 @@ function drawScatterPlot() {
     SCATTER_PLOT_CTX.stroke();
 }
 
+function conciseString(num) {
+    const s = num.toString();
+
+    if (num.toString().length <= SCATTER_PLOT_MAXIMUM_NUMBER_LENGTH) {
+        return s;
+    }
+
+    return num.toExponential(SCATTER_PLOT_EXPONENT_FRACTION_DIGITS);
+}
+
 /**
  * Draw a set of axes that stretch from -maxX to maxX on the
  * x-axis and -maxY to maxY on the y-axis.
@@ -85,42 +103,37 @@ function drawAxes(maxX, maxY) {
         const X = i * stepX;
         const Y = i * stepY;
 
-        var coords;
-        var measurements;
-
         SCATTER_PLOT_CTX.fontStyle = "5px DidactGothic";
         SCATTER_PLOT_CTX.fillStyle = SCATTER_PLOT_STROKE_COLOR;
 
         // Draw markings
-        SCATTER_PLOT_CTX.moveTo(SCATTER_PLOT_Y_AXIS_X + X, SCATTER_PLOT_X_AXIS_Y);
-        coords = screenToGraph(SCATTER_PLOT_Y_AXIS_X + X, SCATTER_PLOT_X_AXIS_Y, maxX, maxY);
-        SCATTER_PLOT_CTX.lineTo(SCATTER_PLOT_Y_AXIS_X + X, SCATTER_PLOT_X_AXIS_Y + SCATTER_PLOT_MARKING_LENGTH);
-        measurements = SCATTER_PLOT_CTX.measureText(coords.x.toString());
-        SCATTER_PLOT_CTX.fillText(coords.x.toString(), SCATTER_PLOT_Y_AXIS_X + X,
-            SCATTER_PLOT_X_AXIS_Y + SCATTER_PLOT_MARKING_LENGTH +
-                measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent);
+        for (const multipliers of SCATTER_PLOT_MARKINGS_MATRIX) {
+            const coords = screenToGraph(multipliers[0], multipliers[1], maxX, maxY);
+            const coordsStr = conciseString((multipliers[0] > 0) ? coords.x : coords.y);
+            const measurements = SCATTER_PLOT_CTX.measureText(coordsStr);
+            const startX = SCATTER_PLOT_Y_AXIS_X + X*multipliers[0];
+            const startY = SCATTER_PLOT_X_AXIS_Y + Y*multipliers[1];
+            const isX = multipliers[0] != 0;
 
-        SCATTER_PLOT_CTX.moveTo(SCATTER_PLOT_Y_AXIS_X - X, SCATTER_PLOT_X_AXIS_Y);
-        coords = screenToGraph(SCATTER_PLOT_Y_AXIS_X - X, SCATTER_PLOT_X_AXIS_Y, maxX, maxY);
-        SCATTER_PLOT_CTX.lineTo(SCATTER_PLOT_Y_AXIS_X - X, SCATTER_PLOT_X_AXIS_Y + SCATTER_PLOT_MARKING_LENGTH);
-        measurements = SCATTER_PLOT_CTX.measureText(coords.x.toString());
-        SCATTER_PLOT_CTX.fillText(coords.x.toString(), SCATTER_PLOT_Y_AXIS_X - X,
-            SCATTER_PLOT_X_AXIS_Y + SCATTER_PLOT_MARKING_LENGTH +
-                measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent);
+            SCATTER_PLOT_CTX.moveTo(startX, startY);
+            SCATTER_PLOT_CTX.lineTo(startX + (isX ? 0 : SCATTER_PLOT_MARKING_LENGTH),
+                startY + (isX ? SCATTER_PLOT_MARKING_LENGTH : 0));
 
-        SCATTER_PLOT_CTX.moveTo(SCATTER_PLOT_Y_AXIS_X, SCATTER_PLOT_X_AXIS_Y - Y);
-        coords = screenToGraph(SCATTER_PLOT_Y_AXIS_X, SCATTER_PLOT_X_AXIS_Y - Y, maxX, maxY);
-        SCATTER_PLOT_CTX.lineTo(SCATTER_PLOT_Y_AXIS_X - SCATTER_PLOT_MARKING_LENGTH, SCATTER_PLOT_X_AXIS_Y - Y);
-        measurements = SCATTER_PLOT_CTX.measureText(coords.y.toString());
-        SCATTER_PLOT_CTX.fillText(coords.y.toString(), SCATTER_PLOT_Y_AXIS_X - SCATTER_PLOT_MARKING_LENGTH - measurements.width,
-            SCATTER_PLOT_X_AXIS_Y - Y);
+            SCATTER_PLOT_CTX.save();
+            SCATTER_PLOT_CTX.translate(
+                startX + (isX ? 0 : SCATTER_PLOT_MARKING_LENGTH +
+                    measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent),
+                startY + (isX ? SCATTER_PLOT_MARKING_LENGTH +
+                    measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent : 0)
+            );
 
-        SCATTER_PLOT_CTX.moveTo(SCATTER_PLOT_Y_AXIS_X, SCATTER_PLOT_X_AXIS_Y + Y);
-        coords = screenToGraph(SCATTER_PLOT_Y_AXIS_X, SCATTER_PLOT_X_AXIS_Y + Y, maxX, maxY);
-        SCATTER_PLOT_CTX.lineTo(SCATTER_PLOT_Y_AXIS_X - SCATTER_PLOT_MARKING_LENGTH, SCATTER_PLOT_X_AXIS_Y + Y);
-        measurements = SCATTER_PLOT_CTX.measureText(coords.y.toString());
-        SCATTER_PLOT_CTX.fillText(coords.y.toString(), SCATTER_PLOT_Y_AXIS_X - SCATTER_PLOT_MARKING_LENGTH - measurements.width,
-            SCATTER_PLOT_X_AXIS_Y + Y);
+            if (isX) {
+                SCATTER_PLOT_CTX.rotate(Math.PI / 2)
+            }
+
+            SCATTER_PLOT_CTX.fillText(coordsStr, 0, 0);
+            SCATTER_PLOT_CTX.restore();
+        }
     }
 
     SCATTER_PLOT_CTX.stroke();
