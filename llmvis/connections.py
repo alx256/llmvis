@@ -56,7 +56,7 @@ class Connection(abc.ABC):
         """
 
         # Start responses
-        responses = [self.__make_request(prompt)]
+        responses = [self.__make_request(prompt, temperature = 0.0)]
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
         separated_prompt = prompt.split(' ')
         combinator = Combinator(separated_prompt)
@@ -64,7 +64,7 @@ class Connection(abc.ABC):
 
         for i, combination in enumerate(combinator.get_combinations()):
             request = self.__flatten_words(combination, delimiter = ' ')
-            responses.append(self.__make_request(request))
+            responses.append(self.__make_request(request, temperature = 0.0))
 
             combination_local = combination.copy()
             combination_local.insert(i, '_' * len(separated_prompt[i]))
@@ -168,7 +168,7 @@ class Connection(abc.ABC):
         return words_str
 
     @abc.abstractmethod
-    def __make_request(self, prompt: str) -> str:
+    def __make_request(self, prompt: str, temperature: int) -> str:
         """
         Make a request to this connection using a prompt.
 
@@ -214,8 +214,12 @@ class OllamaConnection(Connection):
         if ollama.pull(model_name)['status'] != 'success':
             raise RuntimeError(model_name + ' was not able to be pulled. Check that it is a supported model.')
     
-    def _Connection__make_request(self, prompt: str) -> str:
-        return ollama.generate(model = self._model_name, prompt = prompt).response
+    def _Connection__make_request(self, prompt: str, temperature: int) -> str:
+        return ollama.generate(model = self._model_name,
+                               prompt = prompt,
+                               options = {
+                                   'temperature' : temperature
+                               }).response
 
     def _Connection__calculate_embeddings(self, prompts: list[str]) -> list[list[float]]:
         return ollama.embed(model = self._model_name, input = prompts).embeddings
