@@ -17,6 +17,8 @@ setup(
         'ollama',
         'numpy',
         'scikit-learn',
-        'IPython'
+        'IPython',
+        'PyQt6',
+        'PyQt6-WebEngine'
     ]
 )
