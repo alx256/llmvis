@@ -1,6 +1,7 @@
 import abc
 import re
 from numpy.typing import ArrayLike
+from typing import Optional
 
 from llmvis.core.linked_files import relative_file_read
 
@@ -231,7 +232,7 @@ class TableHeatmap(Visualization):
 
     GREY_VALUE = 61
 
-    def __init__(self, headers: list[str], contents: list[list[str]], weights: list[int]):
+    def __init__(self, headers: list[str], contents: list[list[str]], weights: list[int] = []):
         """
         Create a new `TableHeatmap` for some provided content and weights.
 
@@ -243,7 +244,9 @@ class TableHeatmap(Visualization):
                 containing another list with the content that should be contained in
                 the table.
             weights (list[int]): A list where each integer corresponds to the weight for
-                the corresponding row. Length must be equal to the length of `contents`.
+                the corresponding row. If no weight is specified for a row, it will be
+                colored a default grey color. Providing an empty list or not giving a
+                value will give a table without any coloring.
         
         Raises:
             `ValueError` if the lengths of the provided arguments are incorrect or if the table is empty.
@@ -251,9 +254,6 @@ class TableHeatmap(Visualization):
 
         if len(contents) == 0:
             raise ValueError('Table cannot be empty!')
-
-        if len(weights) != len(contents):
-            raise ValueError('contents and weights must be the same length!')
 
         if len(headers) != len(contents[0]):
             raise ValueError('headers must be equal to the number of columns!')
@@ -263,9 +263,10 @@ class TableHeatmap(Visualization):
         self.__weights = weights
 
         # Explanation for doing this explained in TextHeatmap above
-        largest_abs = max(abs(max(weights)), abs(min(weights)))
-        self.__max_weight = largest_abs
-        self.__min_weight = -largest_abs
+        if len(weights) > 0:
+            largest_abs = max(abs(max(weights)), abs(min(weights)))
+            self.__max_weight = largest_abs
+            self.__min_weight = -largest_abs
     
     def get_name(self) -> str:
         return 'Table Heatmap'
@@ -289,10 +290,10 @@ class TableHeatmap(Visualization):
         for i, content in enumerate(self.__contents):
             html += '<tr>'
             for entry in content:
-                bg = self.__get_background_color(self.__weights[i])
+                bg = self.__get_background_color(None if i >= len(self.__weights) else self.__weights[i])
                 html += f'<td style="background-color: {bg};">'
                 html += '<div class="llmvis-text">'
-                html += entry
+                html += str(entry)
                 html += '</div>'
                 html += '</td>'
             html += '</tr>'
@@ -304,7 +305,7 @@ class TableHeatmap(Visualization):
     def get_js(self):
         return ''
 
-    def __get_background_color(self, weight: int) -> str:
+    def __get_background_color(self, weight: Optional[int]) -> str:
         """
         Calculate the necessary background color for a row
         based on a provided weight.
@@ -318,6 +319,9 @@ class TableHeatmap(Visualization):
             property that should be used for coloring the row
             with this weight.
         """
+
+        if weight is None:
+            return f'rgb({self.GREY_VALUE}, {self.GREY_VALUE}, {self.GREY_VALUE})'
 
         rgb = [0.0, 0.0, 0.0]
 

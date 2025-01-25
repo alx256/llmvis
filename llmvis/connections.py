@@ -146,6 +146,51 @@ class Connection(abc.ABC):
 
         return Visualizer([text_heatmap, tag_cloud, scatter_plot])
 
+    def k_temperature_sampling(self, prompt: str, k: int,
+                               start: float = 0.0, end: float = 1.0) -> Visualizer:
+        """
+        Sample `k` temperature values starting with `start` and ending
+        with `end` to examine the differences between temperature
+        values and get a `Visualizer` visualizing this.
+
+        Args:
+            prompt (str): The prompt that should be used with the
+                different temperature values.
+            k (int): The number of samples that should be used. Must
+                be greater than 2.
+            start (float): The starting temperature value. Default
+                is 0.0. Must be less than `end`.
+            end (float): The ending temperature value. Default is
+                1.0. Must be greater than `start`.
+
+        Returns:
+            A `Visualizer` showing a table containing the results of the
+            different samples.
+        """
+
+        if k < 2:
+            raise RuntimeError('k must be at least 2.')
+
+        if end < start:
+            raise RuntimeError('start must come before the end.')
+
+        if end == start:
+            raise RuntimeError('start and end cannot be the same.')
+
+        step = (start + end) / (k - 1)
+        t = start
+        samples = []
+
+        for _ in range(k):
+            samples.append(self.__make_request(prompt = prompt, temperature = t))
+            t += step
+
+        table_contents = [[start + step*i, samples[i]] for i in range(len(samples))]
+        table_heatmap = TableHeatmap(contents = table_contents,
+                                     headers = ['Sampled Temperature', 'Sample Result'])
+
+        return Visualizer([table_heatmap])
+
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
         Flatten a list of unit strings into a singular string
