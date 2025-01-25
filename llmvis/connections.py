@@ -174,6 +174,9 @@ class Connection(abc.ABC):
 
         Args:
             prompt (str): The prompt to be given to the connected model
+            temperature (int): The temperature that should be used for
+                generation. 0.0 means deterministic behaviour while higher
+                temperatures introduce more nondeterminism.
         
         Returns:
             The model's generated response to the prompt
