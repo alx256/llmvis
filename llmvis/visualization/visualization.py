@@ -410,3 +410,61 @@ class ScatterPlot(Visualization):
         js += self.call_function('drawScatterPlot')
 
         return js
+
+class BarChart(Visualization):
+    """
+    A Bar Chart for some data. Given a list of categorical
+    values and their associated numerical (real or integer)
+    values, display a coloured bar chart for each value.
+    """
+
+    def __init__(self, values: list[list[any]]):
+        """
+        Create a new `BarChart` `Visualization` from a list
+        of values.
+
+        Args:
+            values (list[list[any]]): A list of values that
+                the bar chart will visualize. Each element of the
+                list should be another list where the first element
+                is the categorical value that will be shown on the
+                x-axis and the second element is the numerical (real
+                or integer) value that will be shown on the y-axis.
+        """
+        self.__values = values
+
+    def get_name(self) -> str:
+        return 'Bar Chart'
+
+    def get_html(self) -> str:
+        html = f'<canvas id="llmvis-barchart-canvas" width="500" height="500">'
+        html += '</canvas>'
+
+        return html
+
+    def get_js(self) -> str:
+        js = relative_file_read('visualization/js/bar_chart.js')
+        js += f'barChartValues={self.__get_js_values()};'
+        js += self.call_function('drawBarChart')
+
+        return js
+
+    def __get_js_values(self) -> str:
+        """
+        Convert the `values` list to a string containing the list in
+        JavaScript syntax so that it can be embedded into the JavaScript
+        code.
+
+        Returns:
+            A string containing the `values` list as a JavaScript list.
+        """
+        js = '['
+
+        for i, (name, value) in enumerate(self.__values):
+            js += f'["{name}",{value}]'
+
+            if i < len(self.__values) - 1:
+                js += ','
+
+        js += ']'
+        return js

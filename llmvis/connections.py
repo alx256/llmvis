@@ -9,7 +9,8 @@ from sklearn.decomposition import PCA
 
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
-from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud, ScatterPlot
+from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud, ScatterPlot, BarChart
+from llmvis.core.preprocess import should_include
 
 class Connection(abc.ABC):
     """
@@ -180,16 +181,43 @@ class Connection(abc.ABC):
         step = (start + end) / (k - 1)
         t = start
         samples = []
+        # Store the frequency of each word to visualize as a bar chart
+        frequencies = {}
 
         for _ in range(k):
-            samples.append(self.__make_request(prompt = prompt, temperature = t))
+            sample = self.__make_request(prompt = prompt, temperature = t)
+
+            samples.append(sample)
             t += step
+
+            for word in sample.split(' '):
+                # Only keep alpha-numeric (i.e. ignore punctuation) chars
+                # of the string
+                chars = ''.join(e.lower() for e in word if e.isalnum())
+                frequencies.setdefault(chars, 0)
+                frequencies[chars] += 1
 
         table_contents = [[start + step*i, samples[i]] for i in range(len(samples))]
         table_heatmap = TableHeatmap(contents = table_contents,
                                      headers = ['Sampled Temperature', 'Sample Result'])
 
-        return Visualizer([table_heatmap])
+        # Final frequencies list in expected format for bar chart 
+        frequencies_list = []
+
+        for name in frequencies.keys():
+            # Only keep interesting words
+            if should_include(name):
+                frequencies_list.append([name, frequencies[name]])
+
+        # Sort in ascending order
+        frequencies_list = sorted(frequencies_list,
+                                  key = lambda entry : entry[1],
+                                  reverse = True)
+        # Don't want too many bars on the bar chart
+        frequencies_list = frequencies_list[:7]
+        bar_chart = BarChart(frequencies_list)
+
+        return Visualizer([table_heatmap, bar_chart])
 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
