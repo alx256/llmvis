@@ -468,3 +468,42 @@ class BarChart(Visualization):
 
         js += ']'
         return js
+
+class LineChart(Visualization):
+    """
+    A line chart visualization for some data. Display a number of points
+    that are connected by lines.
+    """
+
+    def __init__(self, values: list[list[any]]):
+        """
+        Create a new `LineChart` `Visualization` for a list of values.
+
+        Args:
+            values (list[list[any]]): A list of values that the line
+                chart will visualize. Each element of the list should
+                be another list where the first element is the categorical
+                or numerical value that will be shown on the x-axis and
+                the second element is the numerical value (real or integer)
+                that will be shown on the y-axis. There must be a minimum
+                of two values provided.
+        """
+
+        assert len(values) >= 2
+        self.__values = values
+
+    def get_name(self) -> str:
+        return 'Line Chart'
+
+    def get_html(self) -> str:
+        html = f'<canvas id="llmvis-linechart-canvas" width="500" height="500">'
+        html += '</canvas>'
+
+        return html
+
+    def get_js(self) -> str:
+        js = relative_file_read('visualization/js/line_chart.js')
+        js += f'lineChartValues={self.__values};'
+        js += self.call_function('drawLineChart')
+
+        return js

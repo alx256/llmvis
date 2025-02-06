@@ -34,3 +34,17 @@
 .llmvis-tab.selected {
     background-color: rgb(111, 113, 140);
 }
+
+.llmvis-textbox {
+    font-family: "Didact Gothic", sans-serif;
+    width: 20%;
+    background-color: rgb(111, 113, 140);
+    text-decoration: none;
+    border: none;
+    border-radius: 13px;
+    padding: 10px;
+    color: white;
+    margin-top: 30px;
+    margin-left: 30px;
+    margin-right: 30px;
+}

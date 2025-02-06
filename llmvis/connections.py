@@ -11,6 +11,7 @@ from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
 from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud, ScatterPlot, BarChart
 from llmvis.core.preprocess import should_include
+from llmvis.custom_visualizations import WordSpecificLineChart
 
 class Connection(abc.ABC):
     """
@@ -183,21 +184,37 @@ class Connection(abc.ABC):
         samples = []
         # Store the frequency of each word to visualize as a bar chart
         frequencies = {}
+        # Store the frequencies as temperatures change to visualize as a line chart
+        temperature_change_frequencies = {}
+
+        table_contents = []
+        t_values = []
 
         for _ in range(k):
+            t_values.append(t)
             sample = self.__make_request(prompt = prompt, temperature = t)
 
             samples.append(sample)
-            t += step
+
+            table_contents.append([t, sample])
 
             for word in sample.split(' '):
                 # Only keep alpha-numeric (i.e. ignore punctuation) chars
                 # of the string
                 chars = ''.join(e.lower() for e in word if e.isalnum())
+
                 frequencies.setdefault(chars, 0)
                 frequencies[chars] += 1
+                temperature_change_frequencies.setdefault(chars, [])
 
-        table_contents = [[start + step*i, samples[i]] for i in range(len(samples))]
+                # Calculate the frequencies for each temperature value for this word
+                if len(temperature_change_frequencies[chars]) > 0 and temperature_change_frequencies[chars][-1][0] == t:
+                    temperature_change_frequencies[chars][-1][1] += 1
+                else:
+                    temperature_change_frequencies[chars].append([t, 1])
+
+            t += step
+
         table_heatmap = TableHeatmap(contents = table_contents,
                                      headers = ['Sampled Temperature', 'Sample Result'])
 
@@ -217,7 +234,9 @@ class Connection(abc.ABC):
         frequencies_list = frequencies_list[:7]
         bar_chart = BarChart(frequencies_list)
 
-        return Visualizer([table_heatmap, bar_chart])
+        line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
+
+        return Visualizer([table_heatmap, bar_chart, line_chart])
 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
