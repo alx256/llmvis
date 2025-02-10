@@ -86,7 +86,6 @@ function drawBarChart() {
     var rgb = [MAX_COLOR_VALUE, 0, 0];
     var channel = 1;
     var multiplier = 1;
-    var adjustment = -1;
 
     const INCREMENT = MAX_COLOR_VALUE / barChartValues.length * 3;
 
@@ -111,15 +110,9 @@ function drawBarChart() {
             channel = (channel - 1) % 3;
         }
 
-        if (adjustment == -1) {
-            // height^2 + adjustment^2 = width^2
-            // so adjustment = sqrt(width^2 - height^2)
-            adjustment = Math.sqrt(TEXT_WIDTH*TEXT_WIDTH - TEXT_HEIGHT*TEXT_HEIGHT);
-        }
-
         // X-Axis Categorical Labels
         BAR_CHART_CTX.save();
-        BAR_CHART_CTX.translate(TICK_X - adjustment/2, AXIS_START_POINT_Y + X_TICK_LENGTH);
+        BAR_CHART_CTX.translate(TICK_X, AXIS_START_POINT_Y + X_TICK_LENGTH);
         BAR_CHART_CTX.rotate(Math.PI / 2.5);
         BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
         BAR_CHART_CTX.fillText(NAME, 0, 0);
