@@ -1,7 +1,10 @@
+from __future__ import annotations
 import abc
 import asyncio
 import ollama
 import numpy as np
+from typing_extensions import Optional
+import json
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,7 +14,50 @@ from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
 from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud, ScatterPlot, BarChart
 from llmvis.core.preprocess import should_include
-from llmvis.custom_visualizations import WordSpecificLineChart
+from llmvis.custom_visualizations import WordSpecificLineChart, AIClassifier
+
+CLASSIFICATION_PROMPT = """You will be given some JSON data. You must first establish a number of classes for the data that broadly groups the text items together. Try to find similar concepts and ideas to establish as few classes as possible.  Then, using these classes you have created, classify each numerical item into one of the m classes.
+
+IMPORTANT DETAILS:
+You must only return a JSON string. Nothing more.
+Only the numerical values in the input must be classified.
+All of the inputted numerical values must be classified. Make sure that each one is assigned to a class.
+
+Examples are shown below:
+Input: {
+\"input\": [
+[0.1, \"It is sunny today\"],
+[0.2, \"The time is currently 12:00\"],
+[0.3, \"It rained last week\"],
+[0.4, \"Tomorrow there is meant to be snow\"]
+]
+}
+Output: {
+\"result\":[
+[\"Statements about the weather\", [0.1, 0.3, 0.4]],
+[\"Statements about the time\", [0.2]]
+]
+}
+Input: {
+\"input\": [
+[0.843924, \"Hamburgers are made with beef\"],
+[0.3192381293, \"Football has different meanings in American and British English\"]
+[0.289178237, \"Vegetables are good for you!\"],
+[0.9393939, \"Coca-Cola is an American brand\"],
+[0.42938293, \"Water is a hydrating beverage\"],
+[0.9923231, \"Swimming is great for fitness\"],
+[0.232819912, \"Chicken is rich in protein\"]
+]
+}
+Output: {
+\"result\":[
+[\"Food\", [0.843924, 0.289178237, 0.232819912]],
+[\"Drink\", [0.9393939, 0.42938293]],
+[\"Sports\", [0.3192381293, 0.9923231]]
+]
+}"""
+
+CLASSIFICATION_ATTEMPTS = 5
 
 class Connection(abc.ABC):
     """
@@ -149,7 +195,9 @@ class Connection(abc.ABC):
         return Visualizer([text_heatmap, tag_cloud, scatter_plot])
 
     def k_temperature_sampling(self, prompt: str, k: int,
-                               start: float = 0.0, end: float = 1.0) -> Visualizer:
+                               start: float = 0.0, end: float = 1.0,
+                               use_ai_classifier: bool = False,
+                               ai_classifier_connection: Optional[Connection] = None) -> Visualizer:
         """
         Sample `k` temperature values starting with `start` and ending
         with `end` to examine the differences between temperature
@@ -164,6 +212,17 @@ class Connection(abc.ABC):
                 is 0.0. Must be less than `end`.
             end (float): The ending temperature value. Default is
                 1.0. Must be greater than `start`.
+            use_ai_classifier (bool): Set to `True` to enable the AI
+                classifier visualization which will show an
+                AI-generated overview of the different concepts for
+                each temperature sample and `False` to disable this.
+                Default is `False`. Note that enabling this will take
+                additional computation time compared to other visualizations
+                and has the potential to be inaccurate.
+            ai_classifier_connections (Optional[Connection]): The `Connection`
+                that should be used for the AI classifier visualization.
+                Setting this to `None` will just use this `Connection`.
+                Default is `None`.
 
         Returns:
             A `Visualizer` showing a table containing the results of the
@@ -181,7 +240,10 @@ class Connection(abc.ABC):
 
         step = (start + end) / (k - 1)
         t = start
+        # Sample results
         samples = []
+        # Temperature values
+        temperatures = []
         # Store the frequency of each word to visualize as a bar chart
         frequencies = {}
         # Store the frequencies as temperatures change to visualize as a line chart
@@ -197,6 +259,7 @@ class Connection(abc.ABC):
             samples.append(sample)
 
             table_contents.append([t, sample])
+            temperatures.append(t)
 
             for word in sample.split(' '):
                 # Only keep alpha-numeric (i.e. ignore punctuation) chars
@@ -236,7 +299,24 @@ class Connection(abc.ABC):
 
         line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
 
-        return Visualizer([table_heatmap, bar_chart, line_chart])
+        visualizations = [table_heatmap, bar_chart, line_chart]
+
+        if use_ai_classifier:
+            classified_data = None
+            attempts = 0
+            t = 0.0
+
+            while classified_data is None:
+                if attempts >= CLASSIFICATION_ATTEMPTS:
+                    break
+
+                classified_data = (ai_classifier_connection or self).__classify(table_contents, temperature = t)
+                attempts += 1
+                t += 1.0 / CLASSIFICATION_ATTEMPTS
+
+            visualizations.append(AIClassifier(classified_data, temperatures))
+
+        return Visualizer(visualizations)
 
     def __flatten_words(self, words: list[str], delimiter: str) -> str:
         """
@@ -290,6 +370,27 @@ class Connection(abc.ABC):
 
         pass
 
+    @abc.abstractmethod
+    def __classify(self, data: list[list[any]], temperature: int) -> list[list[any]]:
+        """
+        Classify some data into some number of classes.
+
+        Args:
+            data (list[list[any]]): The data that should be classified. Each
+                element of this list should be another list where the first
+                element is the numerical value that will be put into a class
+                and the second element is a string that will be used for
+                determining the class.
+        
+        Returns:
+            A list where each element is another list with the first element being
+            a string containing a class name and the second element is a list of
+            all numerical values from the input data that are determined to belong
+            to this class.
+        """
+
+        pass
+
 class OllamaConnection(Connection):
     _model_name = ""
 
@@ -318,3 +419,20 @@ class OllamaConnection(Connection):
 
     def _Connection__calculate_embeddings(self, prompts: list[str]) -> list[list[float]]:
         return ollama.embed(model = self._model_name, input = prompts).embeddings
+    
+    def _Connection__classify(self, data: list[list[any]], temperature: int) -> Optional[list[list[any]]]: 
+        try:
+            response = ollama.chat(model = self._model_name,
+                                                messages = [
+                                                    {'role': 'system', 'content': CLASSIFICATION_PROMPT},
+                                                    {'role': 'user', 'content': json.dumps({'input': data})}],
+                                                options = {
+                                                    'temperature': temperature
+                                                }
+                ).message.content
+            return json.loads(response)['result']
+        except json.decoder.JSONDecodeError:
+            # LLM gave a response that was unexpected as it did not only contain
+            # JSON data.
+
+            return None

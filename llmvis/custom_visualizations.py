@@ -1,3 +1,6 @@
+from typing import Optional
+
+from llmvis.visualization import Visualization
 from llmvis.visualization.visualization import LineChart
 from llmvis.visualization.linked_files import relative_file_read
 
@@ -109,3 +112,54 @@ class WordSpecificLineChart(LineChart):
                 filled.append([t, 0.0])
 
         return filled
+
+class AIClassifier(Visualization):
+    """
+    `Visualization` that, given some 1D data that has been assigned to classes,
+    displays each of the classes on the y-axis, the data points on the x-axis,
+    and shows a rectangle to visualize which data points belong to which class.
+    """
+
+    def __init__(self, items: Optional[list[any]], t_values: list[float]):
+        """
+        Create a new `AIClassifier` `Visualization`.
+
+        Args:
+            items (Optional[list[any]]): The classified data. Each element of
+                this list should contain another list where the first element
+                is a string containing the class name and the second element is
+                a list of all the data points belonging to that class. Can also
+                be `None` to indicate that there was a problem with the
+                classification and this `Visualization` should show an error
+                instead.
+            t_values (list[float]): A list of all the data points. Note that
+                all data points that have been classified and are therefore
+                present in `items` should be present in this list, however not
+                all the points in this list need to necessarily be present in
+                `items`.
+        """
+
+        self.__items = items
+        self.__t_values = t_values
+
+    def get_name(self) -> str:
+        return 'AI Classifier'
+
+    def get_html(self) -> str:
+        if self.__items is None:
+            return '<p>Failed to classify data</p>'
+
+        html = '<canvas id="llmvis-ai-classifier-canvas" width="1280" height="500"'
+        html += '</canvas>'
+        return html
+
+    def get_js(self) -> str:
+        if self.__items is None:
+            return ''
+
+        js = relative_file_read('../js/ai_classifier.js')
+        js += f'classifiedData={self.__items};'
+        js += f'points={self.__t_values};'
+        js += self.call_function('drawAiClassifier')
+
+        return js
