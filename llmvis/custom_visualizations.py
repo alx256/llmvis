@@ -43,11 +43,13 @@ class WordSpecificLineChart(LineChart):
         return html + super().get_html()
 
     def get_js(self):
-        js = relative_file_read('../js/word_specific_line_chart.js')
-        js += self.call_function('connectFieldToLineChart',
+        js = self.call_function('connectFieldToLineChart',
                                  '"llmvis-word-text-field"',
                                  self.__values_as_object())
         return js + super().get_js()
+
+    def get_dependencies(self):
+        return ['../js/word_specific_line_chart.js'] + super().get_dependencies()
 
     def __values_as_object(self):
         """
@@ -159,7 +161,7 @@ class AIClassifier(Visualization):
         if self.__items is None:
             return ''
 
-        js = relative_file_read('../js/ai_classifier.js')
-        js += self.call_function('drawAiClassifier', self.__items, self.__t_values)
+        return self.call_function('drawAiClassifier', self.__items, self.__t_values)
 
-        return js
+    def get_dependencies(self):
+        return ['../js/ai_classifier.js']

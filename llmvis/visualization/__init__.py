@@ -138,7 +138,17 @@ class Visualizer():
         script += relative_file_read('js/tabs.js')
 
         # Add any scripts from visualizations
+        added = set()
+
         for visualization in self.__visualizations:
+            # Load the files that these visualizations
+            # are dependent on, but only once to prevent
+            # conflicts.
+            for dependency in visualization.get_dependencies():
+                if dependency not in added:
+                    script += relative_file_read(dependency)
+                    added.add(dependency)
+
             script += visualization.get_js()
 
         return script

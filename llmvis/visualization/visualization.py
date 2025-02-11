@@ -53,7 +53,7 @@ class Unit():
         self.text = text
         self.weight = weight
         self.details = details
-    
+
     def get_js(self):
         """
         Get a JavaScript representation of this `Unit`.
@@ -128,6 +128,20 @@ class Visualization(abc.ABC):
         """
 
         pass
+
+    def get_dependencies(self) -> list[str]:
+        """
+        Use this to load core JavaScript components of the visualization
+        but only once since the contents of each dependency has the
+        potential to cause conflicts if it is added multiple times to
+        the final file.
+
+        Returns:
+        A list of strings containing the relative paths for
+        JavaScript files containing core functions that are required
+        for this visualization.
+        """
+        return []
 
     def call_function(self, func: str, *args: list[any]) -> str:
         """
@@ -209,10 +223,8 @@ class TextHeatmap(Visualization):
         html += '</canvas>'
 
         return html
-    
-    def get_js(self):
-        js = relative_file_read('visualization/js/heatmap.js')
 
+    def get_js(self):
         units_str = '['
 
         for i, unit in enumerate(self.__units):
@@ -223,9 +235,12 @@ class TextHeatmap(Visualization):
 
         units_str += ']'
 
-        js += self.call_function('drawHeatmap', units_str, self.__min_weight, self.__max_weight)
+        js = self.call_function('drawHeatmap', units_str, self.__min_weight, self.__max_weight)
         return js
     
+    def get_dependencies(self):
+        return ['js/heatmap.js']
+
 class TableHeatmap(Visualization):
     """
     A heatmap in the form of a table containing a number of rows
@@ -365,8 +380,6 @@ class TagCloud(Visualization):
         return html
 
     def get_js(self):
-        js = relative_file_read('visualization/js/tag_cloud.js')
-
         units_str = '['
 
         for i, unit in enumerate(self.__units):
@@ -375,9 +388,12 @@ class TagCloud(Visualization):
                 units_str += ','
 
         units_str += ']'
-        js += self.call_function('drawTagCloud', units_str)
+        js = self.call_function('drawTagCloud', units_str)
 
         return js
+
+    def get_dependencies(self):
+        return ['js/tag_cloud.js']
 
 class ScatterPlot(Visualization):
     """
@@ -407,10 +423,10 @@ class ScatterPlot(Visualization):
         return html
 
     def get_js(self):
-        js = relative_file_read('visualization/js/scatter_plot.js')
-        js += self.call_function('drawScatterPlot', self.__plots.tolist())
+        return self.call_function('drawScatterPlot', self.__plots.tolist())
 
-        return js
+    def get_dependencies(self):
+        return ['js/scatter_plot.js']
 
 class BarChart(Visualization):
     """
@@ -444,10 +460,10 @@ class BarChart(Visualization):
         return html
 
     def get_js(self) -> str:
-        js = relative_file_read('visualization/js/bar_chart.js')
-        js += self.call_function('drawBarChart', self.__get_js_values())
+        return self.call_function('drawBarChart', self.__get_js_values())
 
-        return js
+    def get_dependencies(self):
+        return ['js/bar_chart.js']
 
     def __get_js_values(self) -> str:
         """
@@ -502,7 +518,7 @@ class LineChart(Visualization):
         return html
 
     def get_js(self) -> str:
-        js = relative_file_read('visualization/js/line_chart.js')
-        js += self.call_function('drawLineChart', self.__values)
+        return self.call_function('drawLineChart', self.__values)
 
-        return js
+    def get_dependencies(self):
+        return ['js/line_chart.js']
