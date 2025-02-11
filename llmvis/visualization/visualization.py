@@ -408,8 +408,7 @@ class ScatterPlot(Visualization):
 
     def get_js(self):
         js = relative_file_read('visualization/js/scatter_plot.js')
-        js += f'scatterPlotPlots={self.__plots.tolist()};'
-        js += self.call_function('drawScatterPlot')
+        js += self.call_function('drawScatterPlot', self.__plots.tolist())
 
         return js
 
