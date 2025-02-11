@@ -158,8 +158,6 @@ class AIClassifier(Visualization):
             return ''
 
         js = relative_file_read('../js/ai_classifier.js')
-        js += f'classifiedData={self.__items};'
-        js += f'points={self.__t_values};'
-        js += self.call_function('drawAiClassifier')
+        js += self.call_function('drawAiClassifier', self.__items, self.__t_values)
 
         return js
