@@ -503,7 +503,6 @@ class LineChart(Visualization):
 
     def get_js(self) -> str:
         js = relative_file_read('visualization/js/line_chart.js')
-        js += f'lineChartValues={self.__values};'
-        js += self.call_function('drawLineChart')
+        js += self.call_function('drawLineChart', self.__values)
 
         return js

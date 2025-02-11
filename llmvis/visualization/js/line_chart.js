@@ -1,15 +1,13 @@
-const LINE_CHART_CANVAS = document.getElementById('llmvis-linechart-canvas');
-const LINE_CHART_CTX = LINE_CHART_CANVAS.getContext('2d');
-
-const LINE_CHART_STROKE_COLOR = 'rgb(222, 222, 222)';
-const LINE_CHART_AXIS_PADDING = 56;
-
-var lineChartValues;
-
 /**
  * Draw a line chart visualization.
  */
-function drawLineChart() {
+function drawLineChart(lineChartValues) {
+    const LINE_CHART_CANVAS = document.getElementById('llmvis-linechart-canvas');
+    const LINE_CHART_CTX = LINE_CHART_CANVAS.getContext('2d');
+
+    const LINE_CHART_STROKE_COLOR = 'rgb(222, 222, 222)';
+    const LINE_CHART_AXIS_PADDING = 56;
+
     // Clear canvas in case line charts have been drawn before
     LINE_CHART_CTX.clearRect(0, 0, LINE_CHART_CANVAS.width, LINE_CHART_CANVAS.height);
 
