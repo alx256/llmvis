@@ -44,7 +44,9 @@ class WordSpecificLineChart(LineChart):
 
     def get_js(self):
         js = relative_file_read('../js/word_specific_line_chart.js')
-        js += f'wordValues={self.__values_as_object()};'
+        js += self.call_function('connectFieldToLineChart',
+                                 '"llmvis-word-text-field"',
+                                 self.__values_as_object())
         return js + super().get_js()
 
     def __values_as_object(self):
