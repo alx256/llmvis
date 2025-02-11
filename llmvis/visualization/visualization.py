@@ -367,15 +367,15 @@ class TagCloud(Visualization):
     def get_js(self):
         js = relative_file_read('visualization/js/tag_cloud.js')
 
-        js += 'tagCloudUnits=['
+        units_str = '['
 
         for i, unit in enumerate(self.__units):
-            js += unit.get_js()
+            units_str += unit.get_js()
             if i < len(self.__units) - 1:
-                js += ','
+                units_str += ','
 
-        js += '];'
-        js += self.call_function('drawTagCloud')
+        units_str += ']'
+        js += self.call_function('drawTagCloud', units_str)
 
         return js
 

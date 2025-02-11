@@ -1,38 +1,33 @@
-const TAG_CLOUD_CANVAS = document.getElementById('llmvis-tagcloud-canvas');
-const TAG_CLOUD_CTX = TAG_CLOUD_CANVAS.getContext('2d');
-
-const TAG_CLOUD_UNIT_COUNT = 12;
-const TAG_CLOUD_SPACING = 10;
-const TAG_CLOUD_X_INIT = 30;
-const TAG_CLOUD_Y_INIT = 70;
-const TAG_CLOUD_SPRAL_ADJUSTMENTS = [
-    [1, 0],
-    [1, -1],
-    [0, -1],
-    [-1, -1],
-    [-1, 0],
-    [-1, 1],
-    [0, 1],
-    [1, 1]
-];
-
-// To be defined
-var tagCloudUnits;
-var tagCloudMaxWeight;
-var tagCloudMinWeight;
-
 /**
  * Draw a Tag Cloud visualization.
+ * 
+ * @param {Object} units A list of unit objects that should
+ *      be visualized by this tag cloud.
  */
-function drawTagCloud() {
+function drawTagCloud(units) {
+    const TAG_CLOUD_CANVAS = document.getElementById('llmvis-tagcloud-canvas');
+    const TAG_CLOUD_CTX = TAG_CLOUD_CANVAS.getContext('2d');
+
+    const TAG_CLOUD_UNIT_COUNT = 12;
+    const TAG_CLOUD_SPRAL_ADJUSTMENTS = [
+        [1, 0],
+        [1, -1],
+        [0, -1],
+        [-1, -1],
+        [-1, 0],
+        [-1, 1],
+        [0, 1],
+        [1, 1]
+    ];
+
     // Sort highest -> lowest
-    tagCloudUnits.sort(function (a, b) {
+    units.sort(function (a, b) {
         return b.weight - a.weight;
     });
 
-    tagCloudUnits = tagCloudUnits.slice(0, TAG_CLOUD_UNIT_COUNT);
-    const MAX = parseFloat(tagCloudUnits[0].weight);
-    const MIN = parseFloat(tagCloudUnits[tagCloudUnits.length - 1].weight);
+    units = units.slice(0, TAG_CLOUD_UNIT_COUNT);
+    const MAX = parseFloat(units[0].weight);
+    const MIN = parseFloat(units[units.length - 1].weight);
     // "Shift" all values if there are negative values so that
     // they are positive instead. Do this by creating a value
     // (ADDER) that is added to all weights that will shift the lowest
@@ -41,7 +36,7 @@ function drawTagCloud() {
     const ADDER = (MIN < 0) ? Math.abs(MIN) : 0;
     const MIN_FONT_SIZE = 20;
     const MAX_FONT_SIZE = 60;
-    const SHOWED_UNITS = tagCloudUnits;
+    const SHOWED_UNITS = units;
 
     var memory = [];
 
