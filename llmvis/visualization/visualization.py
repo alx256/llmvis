@@ -445,8 +445,7 @@ class BarChart(Visualization):
 
     def get_js(self) -> str:
         js = relative_file_read('visualization/js/bar_chart.js')
-        js += f'barChartValues={self.__get_js_values()};'
-        js += self.call_function('drawBarChart')
+        js += self.call_function('drawBarChart', self.__get_js_values())
 
         return js
 

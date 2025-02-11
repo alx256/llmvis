@@ -1,19 +1,23 @@
-const BAR_CHART_CANVAS = document.getElementById('llmvis-barchart-canvas');
-const BAR_CHART_CTX = BAR_CHART_CANVAS.getContext('2d');
-
-const BAR_CHART_STROKE_COLOR = 'rgb(222, 222, 222)';
-const BAR_CHART_AXIS_PADDING = 56;
-const AXIS_START_POINT_X = BAR_CHART_AXIS_PADDING;
-const AXIS_START_POINT_Y = BAR_CHART_CANVAS.height - BAR_CHART_AXIS_PADDING;
-const AXIS_END_POINT_X = BAR_CHART_CANVAS.width - BAR_CHART_AXIS_PADDING;
-const AXIS_END_POINT_Y = BAR_CHART_AXIS_PADDING;
-
-var barChartValues;
-
 /**
  * Draw a bar chart visualization
+ * 
+ * @param {Object} barChartValues The values that this bar
+ *      chart should visualize. Should be a list where each
+ *      element is another list where the first element is
+ *      the categorical value and the second element is the
+ *      numerical value.
  */
-function drawBarChart() {
+function drawBarChart(barChartValues) {
+    const BAR_CHART_CANVAS = document.getElementById('llmvis-barchart-canvas');
+    const BAR_CHART_CTX = BAR_CHART_CANVAS.getContext('2d');
+
+    const BAR_CHART_STROKE_COLOR = 'rgb(222, 222, 222)';
+    const BAR_CHART_AXIS_PADDING = 56;
+    const AXIS_START_POINT_X = BAR_CHART_AXIS_PADDING;
+    const AXIS_START_POINT_Y = BAR_CHART_CANVAS.height - BAR_CHART_AXIS_PADDING;
+    const AXIS_END_POINT_X = BAR_CHART_CANVAS.width - BAR_CHART_AXIS_PADDING;
+    const AXIS_END_POINT_Y = BAR_CHART_AXIS_PADDING;
+
     var maxVal = -1;
     var intValues = true;
 
