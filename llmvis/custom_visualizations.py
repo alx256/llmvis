@@ -44,7 +44,9 @@ class WordSpecificLineChart(LineChart):
 
     def get_js(self):
         js = relative_file_read('../js/word_specific_line_chart.js')
-        js += f'wordValues={self.__values_as_object()};'
+        js += self.call_function('connectFieldToLineChart',
+                                 '"llmvis-word-text-field"',
+                                 self.__values_as_object())
         return js + super().get_js()
 
     def __values_as_object(self):
@@ -158,8 +160,6 @@ class AIClassifier(Visualization):
             return ''
 
         js = relative_file_read('../js/ai_classifier.js')
-        js += f'classifiedData={self.__items};'
-        js += f'points={self.__t_values};'
-        js += self.call_function('drawAiClassifier')
+        js += self.call_function('drawAiClassifier', self.__items, self.__t_values)
 
         return js

@@ -129,7 +129,7 @@ class Visualization(abc.ABC):
 
         pass
 
-    def call_function(self, func: str) -> str:
+    def call_function(self, func: str, *args: list[any]) -> str:
         """
         Get the JavaScript code to load fonts and then call a
         provided function immediately afterwards.
@@ -137,6 +137,8 @@ class Visualization(abc.ABC):
         Args:
             func (str): The name of the function that should be
                 called.
+            args (list[any]): The arguments (if any) that should
+                be passed into the function.
 
         Returns:
             A string containing the JavaScript code that loads the
@@ -144,7 +146,15 @@ class Visualization(abc.ABC):
                 done.
         """
         js = 'loadFonts().then(function(){'
-        js += f'{func}();'
+        js += f'{func}('
+
+        for i, arg in enumerate(args):
+            js += str(arg)
+
+            if i < len(args) - 1:
+                js += ','
+
+        js += ')'
         js += '});'
         return js
 
@@ -195,9 +205,6 @@ class TextHeatmap(Visualization):
         return 'Text Heatmap'
 
     def get_html(self) -> str:
-        font_size = 50
-        spacing = 10
-
         html = f'<canvas id="llmvis-heatmap-canvas" width="{self.WIDTH}" height="{self.HEIGHT}">'
         html += '</canvas>'
 
@@ -206,22 +213,17 @@ class TextHeatmap(Visualization):
     def get_js(self):
         js = relative_file_read('visualization/js/heatmap.js')
 
-        js += 'units=['
+        units_str = '['
 
         for i, unit in enumerate(self.__units):
-            js += unit.get_js()
-            if i < len(self.__units) - 1:
-                js += ','
-        
-        js += '];'
+            units_str += unit.get_js()
 
-        js += f'minWeight={self.__min_weight};'
-        js += f'maxWeight={self.__max_weight};'
-        
-        js += 'loadFonts().then(function() {'
-        js += 'calculateCanvasSize();'
-        js += 'drawHeatmap();'
-        js += '});'
+            if i < len(self.__units) - 1:
+                units_str += ','
+
+        units_str += ']'
+
+        js += self.call_function('drawHeatmap', units_str, self.__min_weight, self.__max_weight)
         return js
     
 class TableHeatmap(Visualization):
@@ -365,15 +367,15 @@ class TagCloud(Visualization):
     def get_js(self):
         js = relative_file_read('visualization/js/tag_cloud.js')
 
-        js += 'tagCloudUnits=['
+        units_str = '['
 
         for i, unit in enumerate(self.__units):
-            js += unit.get_js()
+            units_str += unit.get_js()
             if i < len(self.__units) - 1:
-                js += ','
+                units_str += ','
 
-        js += '];'
-        js += self.call_function('drawTagCloud')
+        units_str += ']'
+        js += self.call_function('drawTagCloud', units_str)
 
         return js
 
@@ -406,8 +408,7 @@ class ScatterPlot(Visualization):
 
     def get_js(self):
         js = relative_file_read('visualization/js/scatter_plot.js')
-        js += f'scatterPlotPlots={self.__plots.tolist()};'
-        js += self.call_function('drawScatterPlot')
+        js += self.call_function('drawScatterPlot', self.__plots.tolist())
 
         return js
 
@@ -444,8 +445,7 @@ class BarChart(Visualization):
 
     def get_js(self) -> str:
         js = relative_file_read('visualization/js/bar_chart.js')
-        js += f'barChartValues={self.__get_js_values()};'
-        js += self.call_function('drawBarChart')
+        js += self.call_function('drawBarChart', self.__get_js_values())
 
         return js
 
@@ -503,7 +503,6 @@ class LineChart(Visualization):
 
     def get_js(self) -> str:
         js = relative_file_read('visualization/js/line_chart.js')
-        js += f'lineChartValues={self.__values};'
-        js += self.call_function('drawLineChart')
+        js += self.call_function('drawLineChart', self.__values)
 
         return js
