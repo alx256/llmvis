@@ -1,15 +1,19 @@
 /**
  * Draw an AI classifier visualization
  * 
+ * @param {string} canvasId The ID of the canvas that this
+ *      visualization should be drawn to.
  * @param {Object} classifiedData The data that has been
  *      classified into classes that should be shown by
  *      this visualization. Each element of this list should
  *      consist of two elements: the first with the name of the
  *      class and the second containg a list with all the points
  *      that have been classified into that class.
+ * @param {Object} points A list containing all the available
+ *      points that this classifier visualization could have.
  */
-function drawAiClassifier(classifiedData, points) {
-    const CLASSIFIER_CANVAS = document.getElementById('llmvis-ai-classifier-canvas');
+function drawAiClassifier(canvasId, classifiedData, points) {
+    const CLASSIFIER_CANVAS = document.getElementById(canvasId);
     const CLASSIFIER_CTX = CLASSIFIER_CANVAS.getContext('2d');
     const LABEL_MARGINS = 8;
 

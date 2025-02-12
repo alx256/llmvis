@@ -1,11 +1,13 @@
 /**
  * Draw a Tag Cloud visualization.
  * 
+ * @param {string} canvasId The ID of the canvas that this
+ *      tag cloud should be drawn to.
  * @param {Object} units A list of unit objects that should
  *      be visualized by this tag cloud.
  */
-function drawTagCloud(units) {
-    const TAG_CLOUD_CANVAS = document.getElementById('llmvis-tagcloud-canvas');
+function drawTagCloud(canvasId, units) {
+    const TAG_CLOUD_CANVAS = document.getElementById(canvasId);
     const TAG_CLOUD_CTX = TAG_CLOUD_CANVAS.getContext('2d');
 
     const TAG_CLOUD_UNIT_COUNT = 12;

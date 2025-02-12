@@ -31,20 +31,23 @@ class WordSpecificLineChart(LineChart):
         self.__word = list(word_values.keys())[0]
         self.__word_values = word_values
         self.__t_values = t_values
+        
         super().__init__(self.__filled_list(self.__word))
+        self.__textbox_id = str(self.get_uuid()) + '0'
 
     def get_name(self):
         return 'Word-Specific Line Chart'
 
     def get_html(self):
         html = '<input type="text" class="llmvis-textbox" placeholder="Enter a word..." '
-        html += f'id="llmvis-word-text-field" value="{self.__word}">'
+        html += f'id="{self.__textbox_id}" value="{self.__word}">'
         html += '<br>'
         return html + super().get_html()
 
     def get_js(self):
         js = self.call_function('connectFieldToLineChart',
-                                 '"llmvis-word-text-field"',
+                                 f'"{self.get_uuid()}"',
+                                 f'"{self.__textbox_id}"',
                                  self.__values_as_object())
         return js + super().get_js()
 
@@ -143,6 +146,7 @@ class AIClassifier(Visualization):
                 `items`.
         """
 
+        super().__init__()
         self.__items = items
         self.__t_values = t_values
 
@@ -153,7 +157,7 @@ class AIClassifier(Visualization):
         if self.__items is None:
             return '<p>Failed to classify data</p>'
 
-        html = '<canvas id="llmvis-ai-classifier-canvas" width="1280" height="500"'
+        html = f'<canvas id="{self.get_uuid()}" width="1280" height="500"'
         html += '</canvas>'
         return html
 
@@ -161,7 +165,7 @@ class AIClassifier(Visualization):
         if self.__items is None:
             return ''
 
-        return self.call_function('drawAiClassifier', self.__items, self.__t_values)
+        return self.call_function('drawAiClassifier', f'"{self.get_uuid()}"', self.__items, self.__t_values)
 
     def get_dependencies(self):
         return ['../js/ai_classifier.js']

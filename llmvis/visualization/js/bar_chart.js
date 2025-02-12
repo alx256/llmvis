@@ -1,14 +1,16 @@
 /**
  * Draw a bar chart visualization
  * 
+ * @param {string} canvasId The ID of the canvas that this
+ *      bar chart should be drawn to.
  * @param {Object} barChartValues The values that this bar
  *      chart should visualize. Should be a list where each
  *      element is another list where the first element is
  *      the categorical value and the second element is the
  *      numerical value.
  */
-function drawBarChart(barChartValues) {
-    const BAR_CHART_CANVAS = document.getElementById('llmvis-barchart-canvas');
+function drawBarChart(canvasId, barChartValues) {
+    const BAR_CHART_CANVAS = document.getElementById(canvasId);
     const BAR_CHART_CTX = BAR_CHART_CANVAS.getContext('2d');
 
     const BAR_CHART_STROKE_COLOR = 'rgb(222, 222, 222)';

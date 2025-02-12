@@ -1,13 +1,15 @@
 /**
  * Draw the heatmap visualization. Note that this clears the screen.
  * 
+ * @param {string} canvasId The ID of the canvas that this heatmap
+ *      should be drawn to.
  * @param {Object} units A list of Unit objects, containing `name`,
  *      `weight` and `details`.
  * @param {number} minWeight The minimum weight out of all units.
  * @param {number} maxWeight The maximum weight out of all units.
  */
-function drawHeatmap(units, minWeight, maxWeight) {
-    const HEATMAP_CANVAS = document.getElementById('llmvis-heatmap-canvas')
+function drawHeatmap(canvasId, units, minWeight, maxWeight) {
+    const HEATMAP_CANVAS = document.getElementById(canvasId)
     const CTX = HEATMAP_CANVAS.getContext("2d")
     const SPACING = 30;
     const X_INIT = SPACING;
@@ -41,7 +43,7 @@ function drawHeatmap(units, minWeight, maxWeight) {
         // Mouse movements means that hover box should move accordingly
         // and appear/reappear if the cursor is now hovering/no longer
         // hovering over a unit.
-        drawHeatmap(units, minWeight, maxWeight);
+        drawHeatmap(canvasId, units, minWeight, maxWeight);
 
         // Not hovering over anything
         if (chunk == undefined) {
