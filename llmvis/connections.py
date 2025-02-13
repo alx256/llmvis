@@ -272,6 +272,11 @@ class Connection(abc.ABC):
                 # of the string
                 chars = ''.join(e.lower() for e in word if e.isalnum())
 
+                # Edge case where a "word" might contain no alphanumeric characters
+                # for example just a dash '-' surrounded by spaces
+                if len(chars) == 0:
+                    continue
+
                 frequencies.setdefault(chars, 0)
                 frequencies[chars] += 1
                 temperature_change_frequencies.setdefault(chars, [])
