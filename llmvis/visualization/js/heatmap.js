@@ -9,8 +9,9 @@
  * @param {number} maxWeight The maximum weight out of all units.
  */
 function drawHeatmap(canvasId, units, minWeight, maxWeight) {
-    const HEATMAP_CANVAS = document.getElementById(canvasId)
-    const CTX = HEATMAP_CANVAS.getContext("2d")
+    const HEATMAP_CANVAS = document.getElementById(canvasId);
+    const CTX = HEATMAP_CANVAS.getContext("2d");
+    const RECT = HEATMAP_CANVAS.getBoundingClientRect();
     const SPACING = 30;
     const X_INIT = SPACING;
     const Y_INIT = 70;
@@ -27,9 +28,21 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
     var chunkSize;
     var chunks;
 
+    const UNIT_SIZES = calculateCanvasSize(CTX, HEATMAP_CANVAS, units, X_INIT, Y_INIT,
+        LARGE_FONT, MARGIN, SPACING, BOTTOM_SPACE);
+
+    CTX.clearRect(0, 0, HEATMAP_CANVAS.width, HEATMAP_CANVAS.height);
+
+    chunkData = drawUnits(CTX, X_INIT, Y_INIT, maxWeight, minWeight, units, UNIT_SIZES, SPACING,
+        HEATMAP_CANVAS, MARGIN, LARGE_FONT, FONT_COLOR);
+    chunks = chunkData[0];
+    chunkSize = chunkData[1];
+
+    drawKey(HEATMAP_CANVAS, CTX, BOTTOM_SPACE, SPACING, MEDIUM_FONT, FONT_COLOR, maxWeight, minWeight);
+
     HEATMAP_CANVAS.onmousemove = function(event) {
-        const mouseX = event.clientX - HEATMAP_CANVAS.offsetLeft;
-        const mouseY = event.clientY - HEATMAP_CANVAS.offsetTop;
+        const mouseX = event.clientX - RECT.left;
+        const mouseY = event.clientY - RECT.top;
 
         // To reduce redundant searching of the unit locations,
         // a chunking-based approach is used. Find the "chunk"
@@ -71,18 +84,6 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
             EXPLANATION_BOX_WIDTH, EXPLANATION_BOX_HEIGHT,
             SMALL_FONT, FONT_COLOR, CTX);
     };
-
-    const UNIT_SIZES = calculateCanvasSize(CTX, HEATMAP_CANVAS, units, X_INIT, Y_INIT,
-        LARGE_FONT, MARGIN, SPACING, BOTTOM_SPACE);
-
-    CTX.clearRect(0, 0, HEATMAP_CANVAS.width, HEATMAP_CANVAS.height);
-
-    chunkData = drawUnits(CTX, X_INIT, Y_INIT, maxWeight, minWeight, units, UNIT_SIZES, SPACING,
-        HEATMAP_CANVAS, MARGIN, LARGE_FONT, FONT_COLOR);
-    chunks = chunkData[0];
-    chunkSize = chunkData[1];
-
-    drawKey(HEATMAP_CANVAS, CTX, BOTTOM_SPACE, SPACING, MEDIUM_FONT, FONT_COLOR, maxWeight, minWeight);
 }
 
 /**
