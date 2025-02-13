@@ -1,13 +1,15 @@
 /**
  * Draw a Scatter Plot visualization.
  * 
+ * @param {string} canvasId The ID of the canvas that this scatter plot
+ *      should be drawn to.
  * @param {Object} scatterPlotPlots The data of the plots that should be
  *      plotted. Each element of the list should be another list where
  *      the first element is the x position and the second element is the
  *      y position.
  */
-function drawScatterPlot(scatterPlotPlots) {
-    const SCATTER_PLOT_CANVAS = document.getElementById('llmvis-scatterplot-canvas');
+function drawScatterPlot(canvasId, scatterPlotPlots) {
+    const SCATTER_PLOT_CANVAS = document.getElementById(canvasId);
     const SCATTER_PLOT_CTX = SCATTER_PLOT_CANVAS.getContext('2d');
 
     const SCATTER_PLOT_STROKE_COLOR = 'rgb(222, 222, 222)';

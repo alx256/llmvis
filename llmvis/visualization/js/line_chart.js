@@ -1,8 +1,16 @@
 /**
  * Draw a line chart visualization.
+ * 
+ * @param {string} canvasId The ID of the canvas that this
+ *      line chart should be drawn to.
+ * @param {Object} lineChartValues A list containing the
+ *      values that this line chart should show. Each element
+ *      of the list should have the categorical or numerical
+ *      data for the x axis as the first element and the
+ *      corresponding numerical y axis value as the second.
  */
-function drawLineChart(lineChartValues) {
-    const LINE_CHART_CANVAS = document.getElementById('llmvis-linechart-canvas');
+function drawLineChart(canvasId, lineChartValues) {
+    const LINE_CHART_CANVAS = document.getElementById(canvasId);
     const LINE_CHART_CTX = LINE_CHART_CANVAS.getContext('2d');
 
     const LINE_CHART_STROKE_COLOR = 'rgb(222, 222, 222)';

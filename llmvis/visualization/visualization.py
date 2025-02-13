@@ -2,6 +2,7 @@ import abc
 import re
 from numpy.typing import ArrayLike
 from typing import Optional
+import uuid
 
 from llmvis.core.linked_files import relative_file_read
 
@@ -53,7 +54,7 @@ class Unit():
         self.text = text
         self.weight = weight
         self.details = details
-    
+
     def get_js(self):
         """
         Get a JavaScript representation of this `Unit`.
@@ -90,6 +91,14 @@ class Visualization(abc.ABC):
     representation of a specific `Visualization` so it can
     be rendered.
     """
+
+    def __init__(self):
+        """
+        Create a new `Visualization`.
+        """
+
+        self.__uuid__ = None
+        self.__comments__ = []
 
     @abc.abstractmethod
     def get_name(self) -> str:
@@ -129,6 +138,34 @@ class Visualization(abc.ABC):
 
         pass
 
+    def set_comments(self, *comments: str):
+        """
+        Set the comments for this `Visualization`. Comments are shown below
+        the visualization and should contain some information about what
+        the visualization is showing.
+
+        Args:
+            comments (str): Arg list of comments that should be shown under
+                the visualization. Each will use a new line. Since this is
+                embedded directly into the HTML, any HTML is valid here.
+        """
+
+        self.__comments__ = comments
+
+    def get_dependencies(self) -> list[str]:
+        """
+        Use this to load core JavaScript components of the visualization
+        but only once since the contents of each dependency has the
+        potential to cause conflicts if it is added multiple times to
+        the final file.
+
+        Returns:
+        A list of strings containing the relative paths for
+        JavaScript files containing core functions that are required
+        for this visualization.
+        """
+        return []
+
     def call_function(self, func: str, *args: list[any]) -> str:
         """
         Get the JavaScript code to load fonts and then call a
@@ -157,6 +194,44 @@ class Visualization(abc.ABC):
         js += ')'
         js += '});'
         return js
+    
+    def get_uuid(self):
+        """
+        Get a UUID. Useful for canvases where each one should have
+        its own unique ID to prevent conflicts. Note that a UUID
+        will only be created once for each `Visualization` so if
+        multiple elements in the HTML need to have different IDs,
+        you should use variations of this one since a new UUID will
+        not be given each time this method is called.
+
+        Returns:
+        A `UUID` object containing the `UUID` that has been generated
+        for this `Visualization`.
+        """
+
+        if self.__uuid__ is None:
+            self.__uuid__ = uuid.uuid4()
+        
+        return self.__uuid__
+
+    def get_comments_html(self) -> str:
+        """
+        Get the HTML for the comments of this `Visualization`.
+        Comments are set using `set_comments` and contain
+        details about this `Visualization` that should be
+        displayed under the `Visualization` itself.
+
+        Returns:
+        A string containing the HTML representation of the comments
+        for this visualization.
+        """
+
+        html = ''
+
+        for comment in self.__comments__:
+            html += '<p class="llmvis-text">' + comment + '</p>'
+
+        return html
 
 class TextHeatmap(Visualization):
     """
@@ -175,6 +250,7 @@ class TextHeatmap(Visualization):
                 visualized.
         """
 
+        super().__init__()
         self.__units = units
 
         max_weight = None
@@ -205,14 +281,12 @@ class TextHeatmap(Visualization):
         return 'Text Heatmap'
 
     def get_html(self) -> str:
-        html = f'<canvas id="llmvis-heatmap-canvas" width="{self.WIDTH}" height="{self.HEIGHT}">'
+        html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
         html += '</canvas>'
 
         return html
-    
-    def get_js(self):
-        js = relative_file_read('visualization/js/heatmap.js')
 
+    def get_js(self):
         units_str = '['
 
         for i, unit in enumerate(self.__units):
@@ -223,9 +297,13 @@ class TextHeatmap(Visualization):
 
         units_str += ']'
 
-        js += self.call_function('drawHeatmap', units_str, self.__min_weight, self.__max_weight)
+        js = self.call_function('drawHeatmap', f'"{self.get_uuid()}"',
+                                units_str, self.__min_weight, self.__max_weight)
         return js
     
+    def get_dependencies(self):
+        return ['js/heatmap.js']
+
 class TableHeatmap(Visualization):
     """
     A heatmap in the form of a table containing a number of rows
@@ -259,6 +337,8 @@ class TableHeatmap(Visualization):
 
         if len(headers) != len(contents[0]):
             raise ValueError('headers must be equal to the number of columns!')
+
+        super().__init__()
 
         self.__headers = headers
         self.__contents = contents
@@ -353,20 +433,19 @@ class TagCloud(Visualization):
             units (list[Unit]): The list of units which will be visualized
                 by this `TagCloud`.
         """
+        super().__init__()
         self.__units = units
 
     def get_name(self):
         return 'Tag Cloud'
 
     def get_html(self):
-        html = f'<canvas id="llmvis-tagcloud-canvas" width="{self.WIDTH}" height="{self.HEIGHT}">'
+        html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
         html += '</canvas>'
 
         return html
 
     def get_js(self):
-        js = relative_file_read('visualization/js/tag_cloud.js')
-
         units_str = '['
 
         for i, unit in enumerate(self.__units):
@@ -375,9 +454,12 @@ class TagCloud(Visualization):
                 units_str += ','
 
         units_str += ']'
-        js += self.call_function('drawTagCloud', units_str)
+        js = self.call_function('drawTagCloud', f'"{self.get_uuid()}"', units_str)
 
         return js
+
+    def get_dependencies(self):
+        return ['js/tag_cloud.js']
 
 class ScatterPlot(Visualization):
     """
@@ -395,22 +477,23 @@ class ScatterPlot(Visualization):
         co-ordinate and the second being the y co-ordinate.
         """
 
+        super().__init__()
         self.__plots = plots
 
     def get_name(self):
         return 'Scatter Plot'
 
     def get_html(self):
-        html = f'<canvas id="llmvis-scatterplot-canvas" width="700" height="700">'
+        html = f'<canvas id="{self.get_uuid()}" width="700" height="700">'
         html += '</canvas>'
 
         return html
 
     def get_js(self):
-        js = relative_file_read('visualization/js/scatter_plot.js')
-        js += self.call_function('drawScatterPlot', self.__plots.tolist())
+        return self.call_function('drawScatterPlot', f'"{self.get_uuid()}"', self.__plots.tolist())
 
-        return js
+    def get_dependencies(self):
+        return ['js/scatter_plot.js']
 
 class BarChart(Visualization):
     """
@@ -432,22 +515,23 @@ class BarChart(Visualization):
                 x-axis and the second element is the numerical (real
                 or integer) value that will be shown on the y-axis.
         """
+        super().__init__()
         self.__values = values
 
     def get_name(self) -> str:
         return 'Bar Chart'
 
     def get_html(self) -> str:
-        html = f'<canvas id="llmvis-barchart-canvas" width="500" height="500">'
+        html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
         html += '</canvas>'
 
         return html
 
     def get_js(self) -> str:
-        js = relative_file_read('visualization/js/bar_chart.js')
-        js += self.call_function('drawBarChart', self.__get_js_values())
+        return self.call_function('drawBarChart', f'"{self.get_uuid()}"', self.__get_js_values())
 
-        return js
+    def get_dependencies(self):
+        return ['js/bar_chart.js']
 
     def __get_js_values(self) -> str:
         """
@@ -490,19 +574,20 @@ class LineChart(Visualization):
         """
 
         assert len(values) >= 2
+        super().__init__()
         self.__values = values
 
     def get_name(self) -> str:
         return 'Line Chart'
 
     def get_html(self) -> str:
-        html = f'<canvas id="llmvis-linechart-canvas" width="500" height="500">'
+        html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
         html += '</canvas>'
 
         return html
 
     def get_js(self) -> str:
-        js = relative_file_read('visualization/js/line_chart.js')
-        js += self.call_function('drawLineChart', self.__values)
+        return self.call_function('drawLineChart', f'"{self.get_uuid()}"', self.__values)
 
-        return js
+    def get_dependencies(self):
+        return ['js/line_chart.js']
