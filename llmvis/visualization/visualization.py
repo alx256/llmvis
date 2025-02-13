@@ -98,6 +98,7 @@ class Visualization(abc.ABC):
         """
 
         self.__uuid__ = None
+        self.__comments__ = []
 
     @abc.abstractmethod
     def get_name(self) -> str:
@@ -136,6 +137,20 @@ class Visualization(abc.ABC):
         """
 
         pass
+
+    def set_comments(self, *comments: str):
+        """
+        Set the comments for this `Visualization`. Comments are shown below
+        the visualization and should contain some information about what
+        the visualization is showing.
+
+        Args:
+            comments (str): Arg list of comments that should be shown under
+                the visualization. Each will use a new line. Since this is
+                embedded directly into the HTML, any HTML is valid here.
+        """
+
+        self.__comments__ = comments
 
     def get_dependencies(self) -> list[str]:
         """
@@ -198,6 +213,25 @@ class Visualization(abc.ABC):
             self.__uuid__ = uuid.uuid4()
         
         return self.__uuid__
+
+    def get_comments_html(self) -> str:
+        """
+        Get the HTML for the comments of this `Visualization`.
+        Comments are set using `set_comments` and contain
+        details about this `Visualization` that should be
+        displayed under the `Visualization` itself.
+
+        Returns:
+        A string containing the HTML representation of the comments
+        for this visualization.
+        """
+
+        html = ''
+
+        for comment in self.__comments__:
+            html += '<p class="llmvis-text">' + comment + '</p>'
+
+        return html
 
 class TextHeatmap(Visualization):
     """

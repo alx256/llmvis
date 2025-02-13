@@ -141,8 +141,11 @@ class Connection(abc.ABC):
         table_heatmap = TableHeatmap(contents = table_contents,
                                      headers = ['Prompt', 'Model Response', 'Missing Term', 'Shapley Value', 'Cosine Difference'],
                                      weights = [0.0] + shapley_vals)
+        table_heatmap.set_comments(self.__get_info__())
         text_heatmap = TextHeatmap(units)
+        text_heatmap.set_comments(self.__get_info__())
         tag_cloud = TagCloud(units)
+        tag_cloud.set_comments(self.__get_info__())
 
         return Visualizer([table_heatmap, text_heatmap, tag_cloud])
 
@@ -189,8 +192,11 @@ class Connection(abc.ABC):
         reduced = pca.fit_transform(embeddings)
 
         text_heatmap = TextHeatmap(units)
+        text_heatmap.set_comments(self.__get_info__())
         tag_cloud = TagCloud(units)
+        tag_cloud.set_comments(self.__get_info__())
         scatter_plot = ScatterPlot(reduced)
+        scatter_plot.set_comments(self.__get_info__())
 
         return Visualizer([text_heatmap, tag_cloud, scatter_plot])
 
@@ -280,6 +286,7 @@ class Connection(abc.ABC):
 
         table_heatmap = TableHeatmap(contents = table_contents,
                                      headers = ['Sampled Temperature', 'Sample Result'])
+        table_heatmap.set_comments(self.__get_info__())
 
         # Final frequencies list in expected format for bar chart 
         frequencies_list = []
@@ -296,8 +303,10 @@ class Connection(abc.ABC):
         # Don't want too many bars on the bar chart
         frequencies_list = frequencies_list[:7]
         bar_chart = BarChart(frequencies_list)
+        bar_chart.set_comments(self.__get_info__())
 
         line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
+        line_chart.set_comments(self.__get_info__())
 
         visualizations = [table_heatmap, bar_chart, line_chart]
 
@@ -314,7 +323,9 @@ class Connection(abc.ABC):
                 attempts += 1
                 t += 1.0 / CLASSIFICATION_ATTEMPTS
 
-            visualizations.append(AIClassifier(classified_data, temperatures))
+            ai_classifier = AIClassifier(classified_data, temperatures)
+            ai_classifier.set_comments(self.__get_info__())
+            visualizations.append(ai_classifier)
 
         return Visualizer(visualizations)
 
@@ -338,6 +349,19 @@ class Connection(abc.ABC):
                 words_str += delimiter
         
         return words_str
+
+    @abc.abstractmethod
+    def __get_info__(self):
+        """
+        Get information about this `Connection`. This should ideally
+        contain the name of the model that this `Connection` is using,
+        alongside the medium for doing this and any additional information.
+
+        Returns:
+        A string containing information about this `Connection`.
+        """
+
+        pass
 
     @abc.abstractmethod
     def __make_request(self, prompt: str, temperature: int) -> str:
@@ -410,6 +434,9 @@ class OllamaConnection(Connection):
         if ollama.pull(model_name)['status'] != 'success':
             raise RuntimeError(model_name + ' was not able to be pulled. Check that it is a supported model.')
     
+    def __get_info__(self):
+        return 'Model: ' + self._model_name + ' (through Ollama)'
+
     def _Connection__make_request(self, prompt: str, temperature: int) -> str:
         return ollama.generate(model = self._model_name,
                                prompt = prompt,

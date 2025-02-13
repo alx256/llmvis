@@ -141,8 +141,25 @@ class Visualizer():
         html += '</div>'
         for name in self.__visualizations.keys():
             html += '<div class="llmvis-visualization-content">'
+            html += '<table>'
+            html += '<tr>'
             for v in self.__visualizations[name]:
+                html += '<td>'
+                html += '<table>'
+                html += '<tr>'
+                html += '<td>'
                 html += v.get_html()
+                html += '</td>'
+                html += '</tr>'
+                html += '<tr>'
+                html += '<td>'
+                html += v.get_comments_html()
+                html += '</td>'
+                html += '</tr>'
+                html += '</table>'
+                html += '</td>'
+            html += '</tr>'
+            html += '</table>'
             html += '</div>'
         html += '</body>'
         html += '</html>'
