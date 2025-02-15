@@ -116,11 +116,22 @@ function drawAiClassifier(canvasId, classifiedData, points) {
     (which can happen) then it will not be drawn. To be safe,
     we make sure that all are drawn in this loop.
     */
+    var nextX;
+
     for (point of points) {
         const NORMALIZED = normalized(point, maxVal, minVal, points.length);
         const X = AXIS_START_POINT_X + NORMALIZED*(AXIS_END_POINT_X - AXIS_START_POINT_X);
+
+        if (nextX != undefined && X < nextX) {
+            continue;
+        }
+
+        const STR = point.toFixed(roundDp);
+        const MEASUREMENTS = CLASSIFIER_CTX.measureText(STR);
+
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
-        CLASSIFIER_CTX.fillText(point.toFixed(roundDp), X, AXIS_START_POINT_Y + axisLabelHeight + LABEL_MARGINS);
+        CLASSIFIER_CTX.fillText(STR, X, AXIS_START_POINT_Y + axisLabelHeight + LABEL_MARGINS);
+        nextX = X + MEASUREMENTS.width;
     }
 
     /*
