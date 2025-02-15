@@ -50,7 +50,7 @@ function drawLineChart(canvasId, lineChartValues) {
 
         intValues &&= Number.isInteger(value[1]);
 
-        if (last != undefined) {
+        if (last != undefined && last != value[0]) {
             while (last.toFixed(roundDp) == value[0].toFixed(roundDp)) {
                 roundDp += 1;
             }

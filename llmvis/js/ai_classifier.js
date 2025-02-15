@@ -41,7 +41,7 @@ function drawAiClassifier(canvasId, classifiedData, points) {
             minVal = point;
         }
 
-        if (last != undefined) {
+        if (last != undefined && last != point) {
             // Find the number of decimal points to round the points to
             // where they can still be differentiable from one another.
             while (last.toFixed(roundDp) == point.toFixed(roundDp)) {
