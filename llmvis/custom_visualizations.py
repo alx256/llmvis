@@ -76,7 +76,7 @@ class WordSpecificLineChart(LineChart):
         obj = '{'
 
         for i, key in enumerate(self.__word_values.keys()):
-            obj += key + ':' + str(self.__filled_list(key))
+            obj += '"' + key + '"' + ':' + str(self.__filled_list(key))
 
             if i < len(self.__word_values.keys()) - 1:
                 obj += ','

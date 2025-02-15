@@ -24,8 +24,14 @@ function drawAiClassifier(canvasId, classifiedData, points) {
     var maxClassTextMeasurement = -1
     var maxVal = -1;
     var minVal = -1;
+    var roundDp = 0;
+    var last = undefined;
 
-    // Initial pass: find the maximum and minimum points
+    /*
+    Initial pass: find the maximum and minimum points as well as the
+    number of decimal points that the ticks on the x axis should be
+    rounded to.
+    */
     for (point of points) {
         if (point > maxVal) {
             maxVal = point;
@@ -34,6 +40,16 @@ function drawAiClassifier(canvasId, classifiedData, points) {
         if (minVal == -1 || point < minVal) {
             minVal = point;
         }
+
+        if (last != undefined && last != point) {
+            // Find the number of decimal points to round the points to
+            // where they can still be differentiable from one another.
+            while (last.toFixed(roundDp) == point.toFixed(roundDp)) {
+                roundDp += 1;
+            }
+        }
+
+        last = point;
     }
 
     // Second pass: determine the padding that the y-axis
@@ -100,11 +116,22 @@ function drawAiClassifier(canvasId, classifiedData, points) {
     (which can happen) then it will not be drawn. To be safe,
     we make sure that all are drawn in this loop.
     */
+    var nextX;
+
     for (point of points) {
         const NORMALIZED = normalized(point, maxVal, minVal, points.length);
         const X = AXIS_START_POINT_X + NORMALIZED*(AXIS_END_POINT_X - AXIS_START_POINT_X);
+
+        if (nextX != undefined && X < nextX) {
+            continue;
+        }
+
+        const STR = point.toFixed(roundDp);
+        const MEASUREMENTS = CLASSIFIER_CTX.measureText(STR);
+
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
-        CLASSIFIER_CTX.fillText(point, X, AXIS_START_POINT_Y + axisLabelHeight + LABEL_MARGINS);
+        CLASSIFIER_CTX.fillText(STR, X, AXIS_START_POINT_Y + axisLabelHeight + LABEL_MARGINS);
+        nextX = X + MEASUREMENTS.width;
     }
 
     /*
