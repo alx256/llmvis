@@ -33,10 +33,15 @@ function drawLineChart(canvasId, lineChartValues) {
     const POINT_RADIUS = 2;
     const LINE_PADDING = 0.2;
 
+    var roundDp = 0;
+    var last;
+
     /*
-    Find the maximum value in the list
-    and whether or not the data is integer data or
-    real-valued.
+    Find the maximum value in the list,
+    whether or not the data is integer data or
+    real-valued and the number of decimal
+    places that values on the x-axis should
+    be rounded to.
     */
     for (value of lineChartValues) {
         if (value[1] > maxVal) {
@@ -44,6 +49,14 @@ function drawLineChart(canvasId, lineChartValues) {
         }
 
         intValues &&= Number.isInteger(value[1]);
+
+        if (last != undefined) {
+            while (last.toFixed(roundDp) == value[0].toFixed(roundDp)) {
+                roundDp += 1;
+            }
+        }
+
+        last = value[0];
     }
 
     maxVal += (intValues) ? 1 : maxVal*LINE_PADDING;
@@ -87,6 +100,7 @@ function drawLineChart(canvasId, lineChartValues) {
     var xGap = (AXIS_END_POINT_X - AXIS_START_POINT_X) / (lineChartValues.length - 1);
     var previousX;
     var previousY;
+    var nextX;
 
     // Draw the points and lines themselves
     for (i = 0; i < lineChartValues.length; i++) {
@@ -95,7 +109,7 @@ function drawLineChart(canvasId, lineChartValues) {
         const VALUE = ENTRY[1];
         const X = LINE_CHART_AXIS_PADDING + xGap*i;
         const Y = AXIS_END_POINT_Y + (1 - (VALUE / maxVal))*((AXIS_START_POINT_Y - AXIS_END_POINT_Y)/2)
-        const MEASUREMENTS = LINE_CHART_CTX.measureText(NAME);
+        const MEASUREMENTS = LINE_CHART_CTX.measureText(NAME.toFixed(roundDp));
         const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent + MEASUREMENTS.actualBoundingBoxDescent;
 
         // Line from previous point (if applicable)
@@ -108,12 +122,18 @@ function drawLineChart(canvasId, lineChartValues) {
         // Point (as a filled circle)
         LINE_CHART_CTX.arc(X, Y, POINT_RADIUS, 0, 2*Math.PI);
         LINE_CHART_CTX.fill();
-        LINE_CHART_CTX.fillText(NAME, X, AXIS_START_POINT_Y + X_TICK_LENGTH + TEXT_HEIGHT);
-
         // Store previous x and y to draw a line from when drawing the
         // next point.
         previousX = X;
         previousY = Y;
+
+        // Ignore if this will be drawn over the previous x label
+        if (nextX != undefined && X < nextX) {
+            continue;
+        }
+
+        LINE_CHART_CTX.fillText(NAME.toFixed(roundDp), X, AXIS_START_POINT_Y + X_TICK_LENGTH + TEXT_HEIGHT);
+        nextX = X + MEASUREMENTS.width;
     }
 
     LINE_CHART_CTX.stroke();
