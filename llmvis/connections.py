@@ -438,6 +438,7 @@ class Connection(abc.ABC):
                 ]
             )
             hallucinations_line_chart.set_comments(self.__get_info__())
+            hallucinations_line_chart.set_name("Hallucinations Line Chart")
 
             visualizations += [ai_classifier, hallucinations_line_chart]
 

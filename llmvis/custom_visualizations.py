@@ -4,6 +4,7 @@ from llmvis.visualization import Visualization
 from llmvis.visualization.visualization import LineChart
 from llmvis.visualization.linked_files import relative_file_read
 
+
 class WordSpecificLineChart(LineChart):
     """
     Modified `LineChart` that also includes a text box where the user
@@ -31,28 +32,30 @@ class WordSpecificLineChart(LineChart):
         self.__word = list(word_values.keys())[0]
         self.__word_values = word_values
         self.__t_values = t_values
-        
-        super().__init__(self.__filled_list(self.__word))
-        self.__textbox_id = str(self.get_uuid()) + '0'
 
-    def get_name(self):
-        return 'Word-Specific Line Chart'
+        super().__init__(self.__filled_list(self.__word))
+        self.__textbox_id = str(self.get_uuid()) + "0"
+        self.__name__ = "Word-Specific Line Chart"
 
     def get_html(self):
-        html = '<input type="text" class="llmvis-textbox" placeholder="Enter a word..." '
+        html = (
+            '<input type="text" class="llmvis-textbox" placeholder="Enter a word..." '
+        )
         html += f'id="{self.__textbox_id}" value="{self.__word}">'
-        html += '<br>'
+        html += "<br>"
         return html + super().get_html()
 
     def get_js(self):
-        js = self.call_function('connectFieldToLineChart',
-                                 f'"{self.get_uuid()}"',
-                                 f'"{self.__textbox_id}"',
-                                 self.__values_as_object())
+        js = self.call_function(
+            "connectFieldToLineChart",
+            f'"{self.get_uuid()}"',
+            f'"{self.__textbox_id}"',
+            self.__values_as_object(),
+        )
         return js + super().get_js()
 
     def get_dependencies(self):
-        return ['../js/word_specific_line_chart.js'] + super().get_dependencies()
+        return ["../js/word_specific_line_chart.js"] + super().get_dependencies()
 
     def __values_as_object(self):
         """
@@ -73,15 +76,15 @@ class WordSpecificLineChart(LineChart):
         # "word_n" : <filled list of line chart values for word_n>
         # }
 
-        obj = '{'
+        obj = "{"
 
         for i, key in enumerate(self.__word_values.keys()):
-            obj += '"' + key + '"' + ':' + str(self.__filled_list(key))
+            obj += '"' + key + '"' + ":" + str(self.__filled_list(key))
 
             if i < len(self.__word_values.keys()) - 1:
-                obj += ','
+                obj += ","
 
-        obj += '}'
+        obj += "}"
 
         return obj
 
@@ -120,6 +123,7 @@ class WordSpecificLineChart(LineChart):
 
         return filled
 
+
 class AIClassifier(Visualization):
     """
     `Visualization` that, given some 1D data that has been assigned to classes,
@@ -149,23 +153,23 @@ class AIClassifier(Visualization):
         super().__init__()
         self.__items = items
         self.__t_values = t_values
-
-    def get_name(self) -> str:
-        return 'AI Classifier'
+        self.__name__ = "AI Classifier"
 
     def get_html(self) -> str:
         if self.__items is None:
-            return '<p>Failed to classify data</p>'
+            return "<p>Failed to classify data</p>"
 
         html = f'<canvas id="{self.get_uuid()}" width="1280" height="500"'
-        html += '</canvas>'
+        html += "</canvas>"
         return html
 
     def get_js(self) -> str:
         if self.__items is None:
-            return ''
+            return ""
 
-        return self.call_function('drawAiClassifier', f'"{self.get_uuid()}"', self.__items, self.__t_values)
+        return self.call_function(
+            "drawAiClassifier", f'"{self.get_uuid()}"', self.__items, self.__t_values
+        )
 
     def get_dependencies(self):
-        return ['../js/ai_classifier.js']
+        return ["../js/ai_classifier.js"]

@@ -6,6 +6,7 @@ import uuid
 
 from llmvis.core.linked_files import relative_file_read
 
+
 def escape_all(string: str) -> str:
     """
     Given a string, return a new string with necessary special characters
@@ -19,9 +20,10 @@ def escape_all(string: str) -> str:
     Returns:
         A new string with necessary special characters escaped.
     """
-    return re.sub(r'([\'\n"\\])', r'\\\1', string)
+    return re.sub(r'([\'\n"\\])', r"\\\1", string)
 
-class Unit():
+
+class Unit:
     """
     An individual unit that will be shown by the `TextHeatmap`
     visualization. This is commonly a full word, but smaller
@@ -29,8 +31,7 @@ class Unit():
     units too.
     """
 
-    def __init__(self, text: str, weight: float,
-                 details: list[tuple[str, any]]):
+    def __init__(self, text: str, weight: float, details: list[tuple[str, any]]):
         """
         Create a new `Unit`.
 
@@ -67,20 +68,21 @@ class Unit():
             JavaScript not supporting tuples.
         """
 
-        js = '{'
-        js += f'text:\'{escape_all(self.text)}\','
-        js += f'weight:\'{escape_all(str(self.weight))}\','
-        js += 'details: ['
+        js = "{"
+        js += f"text:'{escape_all(self.text)}',"
+        js += f"weight:'{escape_all(str(self.weight))}',"
+        js += "details: ["
 
         for i, detail in enumerate(self.details):
-            js += f'[\'{escape_all(str(detail[0]))}\', \'{escape_all(str(detail[1]))}\']'
+            js += f"['{escape_all(str(detail[0]))}', '{escape_all(str(detail[1]))}']"
 
             if i < len(self.details) - 1:
-                js += ','
+                js += ","
 
-        js += ']}'
+        js += "]}"
 
         return js
+
 
 class Visualization(abc.ABC):
     WIDTH = 600
@@ -99,8 +101,8 @@ class Visualization(abc.ABC):
 
         self.__uuid__ = None
         self.__comments__ = []
+        self.__name__ = "Unnamed Visualization"
 
-    @abc.abstractmethod
     def get_name(self) -> str:
         """
         Get the name of this `Visualization`. Useful for cases
@@ -110,7 +112,7 @@ class Visualization(abc.ABC):
         Returns:
             A string containing the name of this `Visualization`.
         """
-        pass
+        return self.__name__
 
     @abc.abstractmethod
     def get_html(self) -> str:
@@ -133,10 +135,24 @@ class Visualization(abc.ABC):
 
         Returns:
             A string containing the JavaScript representation of
-                this `Visualization`. 
+                this `Visualization`.
         """
 
         pass
+
+    def get_dependencies(self) -> list[str]:
+        """
+        Use this to load core JavaScript components of the visualization
+        but only once since the contents of each dependency has the
+        potential to cause conflicts if it is added multiple times to
+        the final file.
+
+        Returns:
+        A list of strings containing the relative paths for
+        JavaScript files containing core functions that are required
+        for this visualization.
+        """
+        return []
 
     def set_comments(self, *comments: str):
         """
@@ -152,19 +168,15 @@ class Visualization(abc.ABC):
 
         self.__comments__ = comments
 
-    def get_dependencies(self) -> list[str]:
+    def set_name(self, name: str):
         """
-        Use this to load core JavaScript components of the visualization
-        but only once since the contents of each dependency has the
-        potential to cause conflicts if it is added multiple times to
-        the final file.
+        Set the name of this `Visualization` to a custom one. This will
+        update the name shown when this is visualized using a `Visualizer`,
+        so it is helpful for setting a more descriptive name for this
+        `Visualization` than what might be used by default.
+        """
 
-        Returns:
-        A list of strings containing the relative paths for
-        JavaScript files containing core functions that are required
-        for this visualization.
-        """
-        return []
+        self.__name__ = name
 
     def call_function(self, func: str, *args: list[any]) -> str:
         """
@@ -182,19 +194,19 @@ class Visualization(abc.ABC):
                 necessary fonts and calls the function when this is
                 done.
         """
-        js = 'loadFonts().then(function(){'
-        js += f'{func}('
+        js = "loadFonts().then(function(){"
+        js += f"{func}("
 
         for i, arg in enumerate(args):
             js += str(arg)
 
             if i < len(args) - 1:
-                js += ','
+                js += ","
 
-        js += ')'
-        js += '});'
+        js += ")"
+        js += "});"
         return js
-    
+
     def get_uuid(self):
         """
         Get a UUID. Useful for canvases where each one should have
@@ -211,7 +223,7 @@ class Visualization(abc.ABC):
 
         if self.__uuid__ is None:
             self.__uuid__ = uuid.uuid4()
-        
+
         return self.__uuid__
 
     def get_comments_html(self) -> str:
@@ -226,12 +238,13 @@ class Visualization(abc.ABC):
         for this visualization.
         """
 
-        html = ''
+        html = ""
 
         for comment in self.__comments__:
-            html += '<p class="llmvis-text">' + comment + '</p>'
+            html += '<p class="llmvis-text">' + comment + "</p>"
 
         return html
+
 
 class TextHeatmap(Visualization):
     """
@@ -252,6 +265,7 @@ class TextHeatmap(Visualization):
 
         super().__init__()
         self.__units = units
+        self.__name__ = "Text Heatmap"
 
         max_weight = None
         min_weight = None
@@ -259,7 +273,7 @@ class TextHeatmap(Visualization):
         for unit in units:
             if max_weight == None or max_weight < unit.weight:
                 max_weight = unit.weight
-            
+
             if min_weight == None or min_weight > unit.weight:
                 min_weight = unit.weight
 
@@ -277,32 +291,35 @@ class TextHeatmap(Visualization):
         self.__max_weight = largest_abs
         self.__min_weight = -largest_abs
 
-    def get_name(self) -> str:
-        return 'Text Heatmap'
-
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
-        html += '</canvas>'
+        html += "</canvas>"
 
         return html
 
     def get_js(self):
-        units_str = '['
+        units_str = "["
 
         for i, unit in enumerate(self.__units):
             units_str += unit.get_js()
 
             if i < len(self.__units) - 1:
-                units_str += ','
+                units_str += ","
 
-        units_str += ']'
+        units_str += "]"
 
-        js = self.call_function('drawHeatmap', f'"{self.get_uuid()}"',
-                                units_str, self.__min_weight, self.__max_weight)
+        js = self.call_function(
+            "drawHeatmap",
+            f'"{self.get_uuid()}"',
+            units_str,
+            self.__min_weight,
+            self.__max_weight,
+        )
         return js
-    
+
     def get_dependencies(self):
-        return ['js/heatmap.js']
+        return ["js/heatmap.js"]
+
 
 class TableHeatmap(Visualization):
     """
@@ -312,7 +329,9 @@ class TableHeatmap(Visualization):
 
     GREY_VALUE = 61
 
-    def __init__(self, headers: list[str], contents: list[list[str]], weights: list[int] = []):
+    def __init__(
+        self, headers: list[str], contents: list[list[str]], weights: list[int] = []
+    ):
         """
         Create a new `TableHeatmap` for some provided content and weights.
 
@@ -327,65 +346,65 @@ class TableHeatmap(Visualization):
                 the corresponding row. If no weight is specified for a row, it will be
                 colored a default grey color. Providing an empty list or not giving a
                 value will give a table without any coloring.
-        
+
         Raises:
             `ValueError` if the lengths of the provided arguments are incorrect or if the table is empty.
         """
 
         if len(contents) == 0:
-            raise ValueError('Table cannot be empty!')
+            raise ValueError("Table cannot be empty!")
 
         if len(headers) != len(contents[0]):
-            raise ValueError('headers must be equal to the number of columns!')
+            raise ValueError("headers must be equal to the number of columns!")
 
         super().__init__()
 
         self.__headers = headers
         self.__contents = contents
         self.__weights = weights
+        self.__name__ = "Table Heatmap"
 
         # Explanation for doing this explained in TextHeatmap above
         if len(weights) > 0:
             largest_abs = max(abs(max(weights)), abs(min(weights)))
             self.__max_weight = largest_abs
             self.__min_weight = -largest_abs
-    
-    def get_name(self) -> str:
-        return 'Table Heatmap'
 
     def get_html(self):
-        html = '<table>'
-        html += '<colgroup>'
+        html = "<table>"
+        html += "<colgroup>"
         html += '<col span="1" style="width: 25%;">'
         html += '<col span="1" style="width: 75%;">'
-        html += '</colgroup>'
+        html += "</colgroup>"
 
-        html += '<tbody>'
-        html += '<tr>'
+        html += "<tbody>"
+        html += "<tr>"
         for cell in self.__headers:
-            html += '<th>'
+            html += "<th>"
             html += '<div class="llmvis-text">'
             html += cell
-            html += '</div>'
-            html += '</th>'
-        html += '</tr>'
+            html += "</div>"
+            html += "</th>"
+        html += "</tr>"
         for i, content in enumerate(self.__contents):
-            html += '<tr>'
+            html += "<tr>"
             for entry in content:
-                bg = self.__get_background_color(None if i >= len(self.__weights) else self.__weights[i])
+                bg = self.__get_background_color(
+                    None if i >= len(self.__weights) else self.__weights[i]
+                )
                 html += f'<td style="background-color: {bg};">'
                 html += '<div class="llmvis-text">'
                 html += str(entry)
-                html += '</div>'
-                html += '</td>'
-            html += '</tr>'
-        html += '</tbody>'
-        html += '</table>'
+                html += "</div>"
+                html += "</td>"
+            html += "</tr>"
+        html += "</tbody>"
+        html += "</table>"
 
         return html
 
     def get_js(self):
-        return ''
+        return ""
 
     def __get_background_color(self, weight: Optional[int]) -> str:
         """
@@ -395,7 +414,7 @@ class TableHeatmap(Visualization):
         Args:
             weight (int): The weight that should be used for
                 calculating the background color.
-        
+
         Returns:
             A string representing the CSS `background-color`
             property that should be used for coloring the row
@@ -403,20 +422,29 @@ class TableHeatmap(Visualization):
         """
 
         if weight is None:
-            return f'rgb({self.GREY_VALUE}, {self.GREY_VALUE}, {self.GREY_VALUE})'
+            return f"rgb({self.GREY_VALUE}, {self.GREY_VALUE}, {self.GREY_VALUE})"
 
         rgb = [0.0, 0.0, 0.0]
 
         if weight < 0.0:
             other_vals = weight / self.__min_weight
             rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
-            rgb = [rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals), rgb_value]
+            rgb = [
+                rgb_value - (rgb_value * other_vals),
+                rgb_value - (rgb_value * other_vals),
+                rgb_value,
+            ]
         else:
             other_vals = weight / self.__max_weight
             rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
-            rgb = [rgb_value, rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals)]
+            rgb = [
+                rgb_value,
+                rgb_value - (rgb_value * other_vals),
+                rgb_value - (rgb_value * other_vals),
+            ]
 
-        return f'rgb({rgb[0]}, {rgb[1]}, {rgb[2]})'
+        return f"rgb({rgb[0]}, {rgb[1]}, {rgb[2]})"
+
 
 class TagCloud(Visualization):
     """
@@ -435,31 +463,30 @@ class TagCloud(Visualization):
         """
         super().__init__()
         self.__units = units
-
-    def get_name(self):
-        return 'Tag Cloud'
+        self.__name__ = "Tag Cloud"
 
     def get_html(self):
         html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
-        html += '</canvas>'
+        html += "</canvas>"
 
         return html
 
     def get_js(self):
-        units_str = '['
+        units_str = "["
 
         for i, unit in enumerate(self.__units):
             units_str += unit.get_js()
             if i < len(self.__units) - 1:
-                units_str += ','
+                units_str += ","
 
-        units_str += ']'
-        js = self.call_function('drawTagCloud', f'"{self.get_uuid()}"', units_str)
+        units_str += "]"
+        js = self.call_function("drawTagCloud", f'"{self.get_uuid()}"', units_str)
 
         return js
 
     def get_dependencies(self):
-        return ['js/tag_cloud.js']
+        return ["js/tag_cloud.js"]
+
 
 class ScatterPlot(Visualization):
     """
@@ -479,21 +506,22 @@ class ScatterPlot(Visualization):
 
         super().__init__()
         self.__plots = plots
-
-    def get_name(self):
-        return 'Scatter Plot'
+        self.__name__ = "Scatter Plot"
 
     def get_html(self):
         html = f'<canvas id="{self.get_uuid()}" width="700" height="700">'
-        html += '</canvas>'
+        html += "</canvas>"
 
         return html
 
     def get_js(self):
-        return self.call_function('drawScatterPlot', f'"{self.get_uuid()}"', self.__plots.tolist())
+        return self.call_function(
+            "drawScatterPlot", f'"{self.get_uuid()}"', self.__plots.tolist()
+        )
 
     def get_dependencies(self):
-        return ['js/scatter_plot.js']
+        return ["js/scatter_plot.js"]
+
 
 class BarChart(Visualization):
     """
@@ -517,21 +545,21 @@ class BarChart(Visualization):
         """
         super().__init__()
         self.__values = values
-
-    def get_name(self) -> str:
-        return 'Bar Chart'
+        self.__name__ = "Bar Chart"
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
-        html += '</canvas>'
+        html += "</canvas>"
 
         return html
 
     def get_js(self) -> str:
-        return self.call_function('drawBarChart', f'"{self.get_uuid()}"', self.__get_js_values())
+        return self.call_function(
+            "drawBarChart", f'"{self.get_uuid()}"', self.__get_js_values()
+        )
 
     def get_dependencies(self):
-        return ['js/bar_chart.js']
+        return ["js/bar_chart.js"]
 
     def __get_js_values(self) -> str:
         """
@@ -542,16 +570,17 @@ class BarChart(Visualization):
         Returns:
             A string containing the `values` list as a JavaScript list.
         """
-        js = '['
+        js = "["
 
         for i, (name, value) in enumerate(self.__values):
             js += f'["{name}",{value}]'
 
             if i < len(self.__values) - 1:
-                js += ','
+                js += ","
 
-        js += ']'
+        js += "]"
         return js
+
 
 class LineChart(Visualization):
     """
@@ -576,18 +605,18 @@ class LineChart(Visualization):
         assert len(values) >= 2
         super().__init__()
         self.__values = values
-
-    def get_name(self) -> str:
-        return 'Line Chart'
+        self.__name__ = "Line Chart"
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
-        html += '</canvas>'
+        html += "</canvas>"
 
         return html
 
     def get_js(self) -> str:
-        return self.call_function('drawLineChart', f'"{self.get_uuid()}"', self.__values)
+        return self.call_function(
+            "drawLineChart", f'"{self.get_uuid()}"', self.__values
+        )
 
     def get_dependencies(self):
-        return ['js/line_chart.js']
+        return ["js/line_chart.js"]
