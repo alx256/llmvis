@@ -10,7 +10,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import PCA
 
-from just_vis_test import LineChart
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
 from llmvis.visualization.visualization import (
@@ -20,6 +19,7 @@ from llmvis.visualization.visualization import (
     TagCloud,
     ScatterPlot,
     BarChart,
+    LineChart,
 )
 from llmvis.core.preprocess import should_include
 from llmvis.custom_visualizations import WordSpecificLineChart, AIClassifier
