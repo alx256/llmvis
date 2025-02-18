@@ -1,17 +1,10 @@
-class Combinator():
+class Combinator:
     """
     Manages combinations of 'units' in a prompt. A 'unit' can be
     a word, a token or any smaller division of a prompt and Combinator
     provides tools for iterating through different combinations of
     these units to evaluate the importance of each one.
     """
-
-    # The prompt, but as a list of individual units
-    __separated_prompt = []
-
-    # Maps each word to a list of indices in the eventual similarities list, representing
-    # which of the similarity values were calculated with each token removed
-    __without_map = {}
 
     def __init__(self, separated_prompt: list[str]):
         """
@@ -24,8 +17,12 @@ class Combinator():
                 prompt
         """
 
+        # The prompt, but as a list of individual units
         self.__separated_prompt = separated_prompt
-    
+        # Maps each word to a list of indices in the eventual similarities list, representing
+        # which of the similarity values were calculated with each token removed
+        self.__without_map = {}
+
     def get_combinations(self) -> list[list[str]]:
         """
         Get a list containing each combination of units in the
@@ -34,7 +31,7 @@ class Combinator():
         Args:
             flatten_delimiter (str): The string that should be inserted
                 between each word when flattening the separated string
-        
+
         Returns:
             A 2D list containing each combination of unit strings
         """
@@ -48,7 +45,7 @@ class Combinator():
 
             if unit not in self.__without_map:
                 self.__without_map[unit] = []
-            
+
             self.__without_map[unit].append(i)
 
             # Combine words list into single string
@@ -56,7 +53,7 @@ class Combinator():
             self.__separated_prompt.insert(i, unit)
 
         return combinations
-    
+
     def get_shapley_values(self, similarities: list[float]) -> list[int]:
         """
         Use combination data to calculate shapley values based
@@ -80,15 +77,15 @@ class Combinator():
                     without_word_average += similarity
                 else:
                     with_word_average += similarity
-            
+
             with_word_average /= len(similarities) - len(withouts)
             without_word_average /= len(withouts)
 
             shapley_values.append(with_word_average - without_word_average)
-        
+
         # Normalize values
         m = max(shapley_values)
-        
+
         for i in range(len(shapley_values)):
             shapley_values[i] = shapley_values[i] / m
 
