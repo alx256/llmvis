@@ -4,10 +4,11 @@ from numpy.typing import ArrayLike
 from typing import Optional
 import uuid
 
+from llmvis.core.js_tools import list_as_js
 from llmvis.core.linked_files import relative_file_read
 
 
-def escape_all(string: str) -> str:
+def escape_all(string: Optional[str]) -> str:
     """
     Given a string, return a new string with necessary special characters
     escaped. Used for escaping strings so that they can safely be
@@ -80,6 +81,47 @@ class Unit:
                 js += ","
 
         js += "]}"
+
+        return js
+
+
+class Point:
+    """
+    A 2-dimensional point. Useful for a wide variety of graphs
+    that make use of both an x and a y axis.
+    """
+
+    def __init__(self, x: float, y: float, detail: Optional[str] = None):
+        """
+        Create a new `Point`.
+
+        Args:
+            x (int): The x position of this point.
+            y (int): The y position of this point.
+            detail (Optional[str]): The details that are associated with
+                this point (can be none), commonly used to include
+                additional information for tooltips.
+        """
+
+        self.x = x
+        self.y = y
+        self.detail = detail
+
+    def get_js(self):
+        """
+        Get a JavaScript representation of this `Point`.
+
+        Returns:
+            A string containing a JavaScript representation of
+            this `Point` data.
+        """
+
+        js = "{"
+        js += f"x:{self.x},"
+        js += f"y:{self.y}"
+        if self.detail is not None:
+            js += f',detail:"{escape_all(self.detail)}"'
+        js += "}"
 
         return js
 
@@ -588,7 +630,7 @@ class LineChart(Visualization):
     that are connected by lines.
     """
 
-    def __init__(self, values: list[list[any]]):
+    def __init__(self, values: list[Point]):
         """
         Create a new `LineChart` `Visualization` for a list of values.
 
@@ -615,7 +657,9 @@ class LineChart(Visualization):
 
     def get_js(self) -> str:
         return self.call_function(
-            "drawLineChart", f'"{self.get_uuid()}"', self.__values
+            "drawLineChart",
+            f'"{self.get_uuid()}"',
+            list_as_js(self.__values, do_conversion=True),
         )
 
     def get_dependencies(self):

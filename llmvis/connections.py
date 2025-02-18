@@ -13,6 +13,7 @@ from sklearn.decomposition import PCA
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
 from llmvis.visualization.visualization import (
+    Point,
     Unit,
     TextHeatmap,
     TableHeatmap,
@@ -50,10 +51,10 @@ Output: {
 [\"Statements about the time\", [0.2]]
 ],
 \"hallucinations\":[
-[0.1, 0],
-[0.2, 0],
-[0.3, 0],
-[0.4, 0]
+{\"t\": 0.1, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.2, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.3, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.4, \"count\": 0, \"explanation\": \"No hallucinations detected.\"}
 ]
 }
 Input: {
@@ -74,13 +75,13 @@ Output: {
 [\"Sports\", [0.3192381293, 0.9923231]]
 ],
 \"hallucinations\":[
-[0.843924, 1],
-[0.3192381293, 0],
-[0.289178237, 1],
-[0.9393939, 2],
-[0.42938293, 0],
-[0.9923231, 0],
-[0.232819912, 0]
+{\"t\": 0.843924, \"count\": 1, \"explanation\": \"Hamburgers are made with beef.\"},
+{\"t\": 0.3192381293, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.289178237, \"count\": 1, \"explanation\": \"Candy is not healthier than vegetables.\"},
+{\"t\": 0.9393939, \"count\": 2, \"explanation\": \"Coca-Cola is an American brand. It was created in 1886 by John Pemberton.\"},
+{\"t\": 0.42938293, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.9923231, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.232819912, \"count\": 0, \"explanation\": \"No hallucinations detected.\"}
 ]
 }"""
 
@@ -353,11 +354,11 @@ class Connection(abc.ABC):
                 # Calculate the frequencies for each temperature value for this word
                 if (
                     len(temperature_change_frequencies[chars]) > 0
-                    and temperature_change_frequencies[chars][-1][0] == t
+                    and temperature_change_frequencies[chars][-1].x == t
                 ):
-                    temperature_change_frequencies[chars][-1][1] += 1
+                    temperature_change_frequencies[chars][-1].y += 1
                 else:
-                    temperature_change_frequencies[chars].append([t, 1])
+                    temperature_change_frequencies[chars].append(Point(t, 1))
 
             t += step
 
@@ -417,7 +418,16 @@ class Connection(abc.ABC):
                             },
                             "hallucinations": {
                                 "type": "array",
-                                "items": {"type": "array", "items": {"type": "number"}},
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "t": {"type": "number"},
+                                        "count": {"type": "number"},
+                                        "explanation": {"type": "string"},
+                                    },
+                                },
+                                "minItems": len(samples),
+                                "maxItems": len(samples),
                             },
                         },
                     },
@@ -426,21 +436,32 @@ class Connection(abc.ABC):
                 attempts += 1
                 t += 1.0 / MEDIATION_ATTEMPTS
 
-            ai_classifier = AIClassifier(
-                (response_data["classes"] if "classes" in response_data else []),
-                temperatures,
-            )
-            ai_classifier.set_comments(self.__get_info__())
+            try:
+                ai_classifier = AIClassifier(
+                    (response_data["classes"] if "classes" in response_data else []),
+                    temperatures,
+                )
+                ai_classifier.set_comments(self.__get_info__())
+                visualizations.append(ai_classifier)
+            except KeyError:
+                # TODO: Error
+                pass
 
-            hallucinations_line_chart = LineChart(
-                response_data[
-                    "hallucinations" if "hallucinations" in response_data else []
-                ]
-            )
-            hallucinations_line_chart.set_comments(self.__get_info__())
-            hallucinations_line_chart.set_name("Hallucinations Line Chart")
-
-            visualizations += [ai_classifier, hallucinations_line_chart]
+            try:
+                hallucinations_line_chart = LineChart(
+                    [
+                        Point(r["t"], r["count"], r["explanation"])
+                        for r in response_data["hallucinations"]
+                    ]
+                    if "hallucinations" in response_data
+                    else []
+                )
+                hallucinations_line_chart.set_comments(self.__get_info__())
+                hallucinations_line_chart.set_name("Hallucinations Line Chart")
+                visualizations.append(hallucinations_line_chart)
+            except KeyError:
+                # TODO: Error
+                pass
 
         return Visualizer(visualizations)
 

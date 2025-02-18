@@ -1,8 +1,9 @@
 from typing import Optional
 
 from llmvis.visualization import Visualization
-from llmvis.visualization.visualization import LineChart
+from llmvis.visualization.visualization import LineChart, Point
 from llmvis.visualization.linked_files import relative_file_read
+from llmvis.core.js_tools import list_as_js
 
 
 class WordSpecificLineChart(LineChart):
@@ -14,14 +15,14 @@ class WordSpecificLineChart(LineChart):
     switch between the line charts for all the different words.
     """
 
-    def __init__(self, word_values: dict[str, list[list[any]]], t_values: list[int]):
+    def __init__(self, word_values: dict[str, list[Point]], t_values: list[int]):
         """
         Create a new `WordSpecificLineChart` `Visualization`.
 
         Args:
-            word_values (dict[str, list[list[any]]]): A dictionary mapping each word
-                to the line chart data. See `LineChart` for information on how this
-                data should be formatted.
+            word_values (dict[str, list[Point]]): A dictionary mapping each word
+                to a `Point` that will be shown on the line chart. See `LineChart`
+                and `Point` for information on how this data should be formatted.
             t_values (list[int]): A list of integers for the complete temperature
                 values that were used for sampling. This is required so that if
                 in a given word it is missing a frequency for a given temperature,
@@ -79,7 +80,13 @@ class WordSpecificLineChart(LineChart):
         obj = "{"
 
         for i, key in enumerate(self.__word_values.keys()):
-            obj += '"' + key + '"' + ":" + str(self.__filled_list(key))
+            obj += (
+                '"'
+                + key
+                + '"'
+                + ":"
+                + list_as_js(self.__filled_list(key), do_conversion=True)
+            )
 
             if i < len(self.__word_values.keys()) - 1:
                 obj += ","
@@ -88,9 +95,9 @@ class WordSpecificLineChart(LineChart):
 
         return obj
 
-    def __filled_list(self, word: str) -> list[list[any]]:
+    def __filled_list(self, word: str) -> str:
         """
-        Get the list containing raw line chart data for a given
+        Get a string containing raw line chart data for a given
         `word`, with any missing values filled as 0. Useful for
         giving a consistent line chart x-axis between different
         charts.
@@ -100,9 +107,8 @@ class WordSpecificLineChart(LineChart):
                 chart data filled.
 
         Returns:
-            A 2D list containing the original line chart data for
-            `word` but with any missing data inserted with a value
-            of `0`.
+            A string containing the JavaScript representation of
+            the filled list.
         """
 
         values = self.__word_values[word]
@@ -115,11 +121,11 @@ class WordSpecificLineChart(LineChart):
         filled = []
 
         for t in self.__t_values:
-            if i < len(values) and values[i][0] == t:
+            if i < len(values) and values[i].x == t:
                 filled.append(values[i])
                 i += 1
             else:
-                filled.append([t, 0.0])
+                filled.append(Point(t, 0.0))
 
         return filled
 
