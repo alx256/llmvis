@@ -158,21 +158,21 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
 
     // X Axis Label
     const X_LABEL_MEASURMENTS = BAR_CHART_CTX.measureText(xLabel);
+    const X_LABEL_HEIGHT = X_LABEL_MEASURMENTS.actualBoundingBoxAscent + X_LABEL_MEASURMENTS.actualBoundingBoxDescent;
+    const X_LABEL_X = AXIS_START_POINT_X + (AXIS_END_POINT_X - AXIS_START_POINT_X)/2 - X_LABEL_MEASURMENTS.width/2;
+    const X_LABEL_Y = AXIS_START_POINT_Y + X_LABEL_HEIGHT + X_AXIS_TICKS_MARGIN + maxOpposite + X_AXIS_LABEL_SPACING;
     BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
+    // Draw label right on edge of canvas if it is going off the canvas
     BAR_CHART_CTX.fillText(xLabel,
-        AXIS_START_POINT_X +
-        (AXIS_END_POINT_X - AXIS_START_POINT_X)/2 -
-        X_LABEL_MEASURMENTS.width/2,
-        AXIS_START_POINT_Y +
-        X_LABEL_MEASURMENTS.actualBoundingBoxAscent +
-        X_LABEL_MEASURMENTS.actualBoundingBoxDescent +
-        X_AXIS_TICKS_MARGIN + maxOpposite + X_AXIS_LABEL_SPACING);
+        X_LABEL_X, (X_LABEL_Y > BAR_CHART_CANVAS.height) ? BAR_CHART_CANVAS.height : X_LABEL_Y);
 
     // Y Axis Label
     const Y_LABEL_MEASUREMENTS = BAR_CHART_CTX.measureText(yLabel);
+    const Y_LABEL_HEIGHT = Y_LABEL_MEASUREMENTS.actualBoundingBoxAscent + Y_LABEL_MEASUREMENTS.actualBoundingBoxDescent;
+    const Y_LABEL_X = AXIS_START_POINT_X - Y_TICK_LENGTH - maxYTick - Y_AXIS_LABEL_SPACING;
+    const Y_LABEL_Y = (AXIS_START_POINT_Y - AXIS_END_POINT_Y)/2 + Y_LABEL_MEASUREMENTS.width*2;
     BAR_CHART_CTX.save();
-    BAR_CHART_CTX.translate(AXIS_START_POINT_X - Y_TICK_LENGTH - maxYTick - Y_AXIS_LABEL_SPACING,
-        (AXIS_START_POINT_Y - AXIS_END_POINT_Y)/2 + Y_LABEL_MEASUREMENTS.width*2);
+    BAR_CHART_CTX.translate((Y_LABEL_X  - Y_LABEL_HEIGHT < 0) ? Y_LABEL_HEIGHT : Y_LABEL_X, Y_LABEL_Y);
     BAR_CHART_CTX.rotate(-90*Math.PI/180);
     BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
     BAR_CHART_CTX.fillText(yLabel, 0, 0);
