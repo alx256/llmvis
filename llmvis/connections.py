@@ -448,17 +448,18 @@ class Connection(abc.ABC):
                 pass
 
             try:
-                hallucinations_line_chart = LineChart(
-                    [
-                        Point(r["t"], r["count"], r["explanation"])
-                        for r in response_data["hallucinations"]
-                    ]
-                    if "hallucinations" in response_data
-                    else []
-                )
-                hallucinations_line_chart.set_comments(self.__get_info__())
-                hallucinations_line_chart.set_name("Hallucinations Line Chart")
-                visualizations.append(hallucinations_line_chart)
+                if len(response_data["hallucinations"]) >= 2:
+                    hallucinations_line_chart = LineChart(
+                        [
+                            Point(r["t"], r["count"], r["explanation"])
+                            for r in response_data["hallucinations"]
+                        ]
+                        if "hallucinations" in response_data
+                        else []
+                    )
+                    hallucinations_line_chart.set_comments(self.__get_info__())
+                    hallucinations_line_chart.set_name("Hallucinations Line Chart")
+                    visualizations.append(hallucinations_line_chart)
             except KeyError:
                 # TODO: Error
                 pass
