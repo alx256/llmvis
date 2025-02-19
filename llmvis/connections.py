@@ -12,11 +12,24 @@ from sklearn.decomposition import PCA
 
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
-from llmvis.visualization.visualization import Unit, TextHeatmap, TableHeatmap, TagCloud, ScatterPlot, BarChart
+from llmvis.visualization.visualization import (
+    Point,
+    Unit,
+    TextHeatmap,
+    TableHeatmap,
+    TagCloud,
+    ScatterPlot,
+    BarChart,
+    LineChart,
+)
 from llmvis.core.preprocess import should_include
 from llmvis.custom_visualizations import WordSpecificLineChart, AIClassifier
 
-CLASSIFICATION_PROMPT = """You will be given some JSON data. You must first establish a number of classes for the data that broadly groups the text items together. Try to find similar concepts and ideas to establish as few classes as possible.  Then, using these classes you have created, classify each numerical item into one of the m classes.
+MEDIATION_PROMPT = """You will be given some JSON data, containing a numerical value followed by a string. You must perform two tasks on the data you are given.
+
+First task: You must establish a number of classes for the data based on the text items. Try to find similar concepts and ideas within the text items to establish as few classes as possible.  Then, using these classes you have created, classify each numerical item into one of the classes.
+
+Second task: You must determine the number of hallucinations associated with each numerical value based on its associated text item. A hallucination is defined as an incorrect statement.
 
 IMPORTANT DETAILS:
 You must only return a JSON string. Nothing more.
@@ -33,31 +46,47 @@ Input: {
 ]
 }
 Output: {
-\"result\":[
+\"classes\":[
 [\"Statements about the weather\", [0.1, 0.3, 0.4]],
 [\"Statements about the time\", [0.2]]
+],
+\"hallucinations\":[
+{\"t\": 0.1, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.2, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.3, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.4, \"count\": 0, \"explanation\": \"No hallucinations detected.\"}
 ]
 }
 Input: {
 \"input\": [
-[0.843924, \"Hamburgers are made with beef\"],
+[0.843924, \"Hamburgers are made with pork\"],
 [0.3192381293, \"Football has different meanings in American and British English\"]
-[0.289178237, \"Vegetables are good for you!\"],
-[0.9393939, \"Coca-Cola is an American brand\"],
+[0.289178237, \"Vegetables are good for you but candy is better!\"],
+[0.9393939, \"Coca-Cola is an Spanish brand. It was created in 1989 by Jorge Cola.\"],
 [0.42938293, \"Water is a hydrating beverage\"],
 [0.9923231, \"Swimming is great for fitness\"],
 [0.232819912, \"Chicken is rich in protein\"]
 ]
 }
 Output: {
-\"result\":[
+\"classes\":[
 [\"Food\", [0.843924, 0.289178237, 0.232819912]],
 [\"Drink\", [0.9393939, 0.42938293]],
 [\"Sports\", [0.3192381293, 0.9923231]]
+],
+\"hallucinations\":[
+{\"t\": 0.843924, \"count\": 1, \"explanation\": \"Hamburgers are made with beef.\"},
+{\"t\": 0.3192381293, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.289178237, \"count\": 1, \"explanation\": \"Candy is not healthier than vegetables.\"},
+{\"t\": 0.9393939, \"count\": 2, \"explanation\": \"Coca-Cola is an American brand. It was created in 1886 by John Pemberton.\"},
+{\"t\": 0.42938293, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.9923231, \"count\": 0, \"explanation\": \"No hallucinations detected.\"},
+{\"t\": 0.232819912, \"count\": 0, \"explanation\": \"No hallucinations detected.\"}
 ]
 }"""
 
-CLASSIFICATION_ATTEMPTS = 5
+MEDIATION_ATTEMPTS = 5
+
 
 class Connection(abc.ABC):
     """
@@ -85,8 +114,10 @@ class Connection(abc.ABC):
         """
 
         # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
-    
-    def word_importance_gen_shapley(self, prompt: str, sampling_ratio: float = 0.5) -> Visualizer:
+
+    def word_importance_gen_shapley(
+        self, prompt: str, sampling_ratio: float = 0.5
+    ) -> Visualizer:
         """
         Calculate the importance of each word in a given prompt
         using the TokenSHAP algorithm (see https://arxiv.org/html/2407.10114v2)
@@ -104,19 +135,19 @@ class Connection(abc.ABC):
         """
 
         # Start responses
-        responses = [self.__make_request(prompt, temperature = 0.0)]
+        responses = [self.__make_request(prompt, temperature=0.0)]
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
-        separated_prompt = prompt.split(' ')
+        separated_prompt = prompt.split(" ")
         combinator = Combinator(separated_prompt)
         requests = [prompt]
 
         for i, combination in enumerate(combinator.get_combinations()):
-            request = self.__flatten_words(combination, delimiter = ' ')
-            responses.append(self.__make_request(request, temperature = 0.0))
+            request = self.__flatten_words(combination, delimiter=" ")
+            responses.append(self.__make_request(request, temperature=0.0))
 
             combination_local = combination.copy()
-            combination_local.insert(i, '_' * len(separated_prompt[i]))
-            formatted_request = self.__flatten_words(combination_local, delimiter = ' ')
+            combination_local.insert(i, "_" * len(separated_prompt[i]))
+            formatted_request = self.__flatten_words(combination_local, delimiter=" ")
 
             requests.append(formatted_request)
 
@@ -125,22 +156,45 @@ class Connection(abc.ABC):
         vectors = vectorizer.fit_transform(responses).toarray()
         # Use TF-IDF representation to calculate similarity between each
         # response and the full response
-        similarities = cosine_similarity(vectors[0].reshape(1, -1), vectors[1:]).flatten()
-        
+        similarities = cosine_similarity(
+            vectors[0].reshape(1, -1), vectors[1:]
+        ).flatten()
+
         # Start the visualization
         shapley_vals = combinator.get_shapley_values(similarities)
-        units = [Unit(separated_prompt[i], shapley_vals[i],
-                      [('Shapley Value', shapley_vals[i]),
-                       ('Generated Prompt', responses[i + 1])])
-                    for i in range(len(separated_prompt))]
-        table_contents = [[requests[i], responses[i],
-            separated_prompt[i - 1] if i > 0 else 'N/A',
-            str(shapley_vals[i - 1]) if i > 0 else 'N/A',
-            str(similarities[i - 1]) if i > 0 else 'N/A'] for i in range(len(responses))]
+        units = [
+            Unit(
+                separated_prompt[i],
+                shapley_vals[i],
+                [
+                    ("Shapley Value", shapley_vals[i]),
+                    ("Generated Prompt", responses[i + 1]),
+                ],
+            )
+            for i in range(len(separated_prompt))
+        ]
+        table_contents = [
+            [
+                requests[i],
+                responses[i],
+                separated_prompt[i - 1] if i > 0 else "N/A",
+                str(shapley_vals[i - 1]) if i > 0 else "N/A",
+                str(similarities[i - 1]) if i > 0 else "N/A",
+            ]
+            for i in range(len(responses))
+        ]
 
-        table_heatmap = TableHeatmap(contents = table_contents,
-                                     headers = ['Prompt', 'Model Response', 'Missing Term', 'Shapley Value', 'Cosine Difference'],
-                                     weights = [0.0] + shapley_vals)
+        table_heatmap = TableHeatmap(
+            contents=table_contents,
+            headers=[
+                "Prompt",
+                "Model Response",
+                "Missing Term",
+                "Shapley Value",
+                "Cosine Difference",
+            ],
+            weights=[0.0] + shapley_vals,
+        )
         table_heatmap.set_comments(self.__get_info__())
         text_heatmap = TextHeatmap(units)
         text_heatmap.set_comments(self.__get_info__())
@@ -165,30 +219,38 @@ class Connection(abc.ABC):
             for the importance of each word.
         """
 
-        separated_prompt = prompt.split(' ')
+        separated_prompt = prompt.split(" ")
         combinator = Combinator(separated_prompt)
 
-        requests = [prompt] + [self.__flatten_words(combination, delimiter = ' ')
-                                for combination in combinator.get_combinations()]
+        requests = [prompt] + [
+            self.__flatten_words(combination, delimiter=" ")
+            for combination in combinator.get_combinations()
+        ]
         embeddings = []
 
         for i, request in enumerate(requests):
-            print(f'Calculating {i}/{len(requests)}...')
+            print(f"Calculating {i}/{len(requests)}...")
             embeddings.append(self.__calculate_embeddings(request)[0])
 
         embeddings = np.array(embeddings)
 
-        similarities = cosine_similarity(embeddings[0].reshape(1, -1), embeddings[1:]).flatten()
+        similarities = cosine_similarity(
+            embeddings[0].reshape(1, -1), embeddings[1:]
+        ).flatten()
         shapley_vals = combinator.get_shapley_values(similarities)
-        units = [Unit(separated_prompt[i], shapley_vals[i],
-                        [('Shapley Value', shapley_vals[i]),
-                         ('Embedding', embeddings[i + 1])])
-                    for i in range(len(separated_prompt))]
+        units = [
+            Unit(
+                separated_prompt[i],
+                shapley_vals[i],
+                [("Shapley Value", shapley_vals[i]), ("Embedding", embeddings[i + 1])],
+            )
+            for i in range(len(separated_prompt))
+        ]
 
         # Use PCA to reduce dimensionality to suppress noise and speed up
         # computations (per scikit-learn recommendations
         # https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
-        pca = PCA(n_components = 2)
+        pca = PCA(n_components=2)
         reduced = pca.fit_transform(embeddings)
 
         text_heatmap = TextHeatmap(units)
@@ -200,10 +262,15 @@ class Connection(abc.ABC):
 
         return Visualizer([text_heatmap, tag_cloud, scatter_plot])
 
-    def k_temperature_sampling(self, prompt: str, k: int,
-                               start: float = 0.0, end: float = 1.0,
-                               use_ai_classifier: bool = False,
-                               ai_classifier_connection: Optional[Connection] = None) -> Visualizer:
+    def k_temperature_sampling(
+        self,
+        prompt: str,
+        k: int,
+        start: float = 0.0,
+        end: float = 1.0,
+        enable_mediation: bool = False,
+        mediator_connection: Optional[Connection] = None,
+    ) -> Visualizer:
         """
         Sample `k` temperature values starting with `start` and ending
         with `end` to examine the differences between temperature
@@ -218,15 +285,18 @@ class Connection(abc.ABC):
                 is 0.0. Must be less than `end`.
             end (float): The ending temperature value. Default is
                 1.0. Must be greater than `start`.
-            use_ai_classifier (bool): Set to `True` to enable the AI
-                classifier visualization which will show an
-                AI-generated overview of the different concepts for
-                each temperature sample and `False` to disable this.
+            enable_mediation (bool): Set to `True` to enable the
+                AI mediator tools. These use an external "mediator"
+                model to visualize additional insights about results.
+                Enabling this will show an additional visualization
+                containing the different overlapping concepts for
+                each temperature sample and a line chart with the
+                detected hallucinations for each sample.
                 Default is `False`. Note that enabling this will take
-                additional computation time compared to other visualizations
-                and has the potential to be inaccurate.
-            ai_classifier_connections (Optional[Connection]): The `Connection`
-                that should be used for the AI classifier visualization.
+                additional computation time and has the potential to be
+                inaccurate.
+            mediator_connection (Optional[Connection]): The `Connection`
+                that should be used for mediator visualizations.
                 Setting this to `None` will just use this `Connection`.
                 Default is `None`.
 
@@ -236,13 +306,13 @@ class Connection(abc.ABC):
         """
 
         if k < 2:
-            raise RuntimeError('k must be at least 2.')
+            raise RuntimeError("k must be at least 2.")
 
         if end < start:
-            raise RuntimeError('start must come before the end.')
+            raise RuntimeError("start must come before the end.")
 
         if end == start:
-            raise RuntimeError('start and end cannot be the same.')
+            raise RuntimeError("start and end cannot be the same.")
 
         step = (start + end) / (k - 1)
         t = start
@@ -260,17 +330,17 @@ class Connection(abc.ABC):
 
         for _ in range(k):
             t_values.append(t)
-            sample = self.__make_request(prompt = prompt, temperature = t)
+            sample = self.__make_request(prompt=prompt, temperature=t)
 
             samples.append(sample)
 
             table_contents.append([t, sample])
             temperatures.append(t)
 
-            for word in sample.split(' '):
+            for word in sample.split(" "):
                 # Only keep alpha-numeric (i.e. ignore punctuation) chars
                 # of the string
-                chars = ''.join(e.lower() for e in word if e.isalnum())
+                chars = "".join(e.lower() for e in word if e.isalnum())
 
                 # Edge case where a "word" might contain no alphanumeric characters
                 # for example just a dash '-' surrounded by spaces
@@ -282,18 +352,22 @@ class Connection(abc.ABC):
                 temperature_change_frequencies.setdefault(chars, [])
 
                 # Calculate the frequencies for each temperature value for this word
-                if len(temperature_change_frequencies[chars]) > 0 and temperature_change_frequencies[chars][-1][0] == t:
-                    temperature_change_frequencies[chars][-1][1] += 1
+                if (
+                    len(temperature_change_frequencies[chars]) > 0
+                    and temperature_change_frequencies[chars][-1].x == t
+                ):
+                    temperature_change_frequencies[chars][-1].y += 1
                 else:
-                    temperature_change_frequencies[chars].append([t, 1])
+                    temperature_change_frequencies[chars].append(Point(t, 1))
 
             t += step
 
-        table_heatmap = TableHeatmap(contents = table_contents,
-                                     headers = ['Sampled Temperature', 'Sample Result'])
+        table_heatmap = TableHeatmap(
+            contents=table_contents, headers=["Sampled Temperature", "Sample Result"]
+        )
         table_heatmap.set_comments(self.__get_info__())
 
-        # Final frequencies list in expected format for bar chart 
+        # Final frequencies list in expected format for bar chart
         frequencies_list = []
 
         for name in frequencies.keys():
@@ -302,9 +376,9 @@ class Connection(abc.ABC):
                 frequencies_list.append([name, frequencies[name]])
 
         # Sort in ascending order
-        frequencies_list = sorted(frequencies_list,
-                                  key = lambda entry : entry[1],
-                                  reverse = True)
+        frequencies_list = sorted(
+            frequencies_list, key=lambda entry: entry[1], reverse=True
+        )
         # Don't want too many bars on the bar chart
         frequencies_list = frequencies_list[:7]
         bar_chart = BarChart(frequencies_list)
@@ -315,22 +389,80 @@ class Connection(abc.ABC):
 
         visualizations = [table_heatmap, bar_chart, line_chart]
 
-        if use_ai_classifier:
-            classified_data = None
+        if enable_mediation:
+            response_data = None
             attempts = 0
             t = 0.0
 
-            while classified_data is None:
-                if attempts >= CLASSIFICATION_ATTEMPTS:
+            while response_data is None:
+                if attempts >= MEDIATION_ATTEMPTS:
                     break
 
-                classified_data = (ai_classifier_connection or self).__classify(table_contents, temperature = t)
+                response_data = (mediator_connection or self).__mediate__(
+                    prompt=MEDIATION_PROMPT,
+                    data=table_contents,
+                    format={
+                        "type": "object",
+                        "properties": {
+                            "classes": {
+                                "type": "array",
+                                "items": {
+                                    "type": "array",
+                                    "items": [
+                                        {"type": "string"},
+                                        {"type": "array", "items": {"type": "number"}},
+                                    ],
+                                    "minItems": 2,
+                                    "maxItems": 2,
+                                },
+                            },
+                            "hallucinations": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "t": {"type": "number"},
+                                        "count": {"type": "number"},
+                                        "explanation": {"type": "string"},
+                                    },
+                                },
+                                "minItems": len(samples),
+                                "maxItems": len(samples),
+                            },
+                        },
+                    },
+                    temperature=t,
+                )
                 attempts += 1
-                t += 1.0 / CLASSIFICATION_ATTEMPTS
+                t += 1.0 / MEDIATION_ATTEMPTS
 
-            ai_classifier = AIClassifier(classified_data, temperatures)
-            ai_classifier.set_comments(self.__get_info__())
-            visualizations.append(ai_classifier)
+            try:
+                ai_classifier = AIClassifier(
+                    (response_data["classes"] if "classes" in response_data else []),
+                    temperatures,
+                )
+                ai_classifier.set_comments(self.__get_info__())
+                visualizations.append(ai_classifier)
+            except KeyError:
+                # TODO: Error
+                pass
+
+            try:
+                if len(response_data["hallucinations"]) >= 2:
+                    hallucinations_line_chart = LineChart(
+                        [
+                            Point(r["t"], r["count"], r["explanation"])
+                            for r in response_data["hallucinations"]
+                        ]
+                        if "hallucinations" in response_data
+                        else []
+                    )
+                    hallucinations_line_chart.set_comments(self.__get_info__())
+                    hallucinations_line_chart.set_name("Hallucinations Line Chart")
+                    visualizations.append(hallucinations_line_chart)
+            except KeyError:
+                # TODO: Error
+                pass
 
         return Visualizer(visualizations)
 
@@ -345,14 +477,14 @@ class Connection(abc.ABC):
                 used for separating units (can just be empty)
         """
 
-        words_str = ''
+        words_str = ""
         for i, word in enumerate(words):
             words_str += word
 
             # Add a separator between each word and the next
             if i < len(words) - 1:
                 words_str += delimiter
-        
+
         return words_str
 
     @abc.abstractmethod
@@ -378,7 +510,7 @@ class Connection(abc.ABC):
             temperature (int): The temperature that should be used for
                 generation. 0.0 means deterministic behaviour while higher
                 temperatures introduce more nondeterminism.
-        
+
         Returns:
             The model's generated response to the prompt
         """
@@ -400,25 +532,31 @@ class Connection(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __classify(self, data: list[list[any]], temperature: int) -> list[list[any]]:
+    def __mediate__(
+        self, prompt: str, data: list[any], format: dict[any, any], temperature: int
+    ) -> Optional[dict[any, any]]:
         """
-        Classify some data into some number of classes.
+        Use this connection to "mediate" some data. This executes a more complex
+        NLP-related task using this model and is used for tasks such as
+        classification and hallucination detection.
 
         Args:
-            data (list[list[any]]): The data that should be classified. Each
-                element of this list should be another list where the first
-                element is the numerical value that will be put into a class
-                and the second element is a string that will be used for
-                determining the class.
-        
+            prompt (str): The prompt detailing what task the model should complete
+                on the provided data.
+            data (list[list[any]]): The data that should be used for mediation, following
+                the format detailed in the prompt.
+            format (dict[any, any]): The JSON Schema format that the output should provide.
+                May be ignored if underlying connection does not have support for structured
+                outputs.
+            temperature (int): The temperature that should be used for calculating the
+                response.
+
         Returns:
-            A list where each element is another list with the first element being
-            a string containing a class name and the second element is a list of
-            all numerical values from the input data that are determined to belong
-            to this class.
+            A dictionary containing the output data from this or `None` if an issue occured.
         """
 
         pass
+
 
 class OllamaConnection(Connection):
     _model_name = ""
@@ -436,33 +574,39 @@ class OllamaConnection(Connection):
         self._model_name = model_name
 
         # Try to pull the model
-        if ollama.pull(model_name)['status'] != 'success':
-            raise RuntimeError(model_name + ' was not able to be pulled. Check that it is a supported model.')
-    
+        if ollama.pull(model_name)["status"] != "success":
+            raise RuntimeError(
+                model_name
+                + " was not able to be pulled. Check that it is a supported model."
+            )
+
     def __get_info__(self):
-        return 'Model: ' + self._model_name + ' (through Ollama)'
+        return "Model: " + self._model_name + " (through Ollama)"
 
     def _Connection__make_request(self, prompt: str, temperature: int) -> str:
-        return ollama.generate(model = self._model_name,
-                               prompt = prompt,
-                               options = {
-                                   'temperature' : temperature
-                               }).response
+        return ollama.generate(
+            model=self._model_name, prompt=prompt, options={"temperature": temperature}
+        ).response
 
-    def _Connection__calculate_embeddings(self, prompts: list[str]) -> list[list[float]]:
-        return ollama.embed(model = self._model_name, input = prompts).embeddings
-    
-    def _Connection__classify(self, data: list[list[any]], temperature: int) -> Optional[list[list[any]]]: 
+    def _Connection__calculate_embeddings(
+        self, prompts: list[str]
+    ) -> list[list[float]]:
+        return ollama.embed(model=self._model_name, input=prompts).embeddings
+
+    def __mediate__(
+        self, prompt: str, data: list[any], format: dict[any, any], temperature: int
+    ) -> Optional[dict[any, any]]:
         try:
-            response = ollama.chat(model = self._model_name,
-                                                messages = [
-                                                    {'role': 'system', 'content': CLASSIFICATION_PROMPT},
-                                                    {'role': 'user', 'content': json.dumps({'input': data})}],
-                                                options = {
-                                                    'temperature': temperature
-                                                }
-                ).message.content
-            return json.loads(response)['result']
+            response = ollama.chat(
+                model=self._model_name,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": json.dumps({"input": data})},
+                ],
+                options={"temperature": temperature},
+                format=format,
+            ).message.content
+            return json.loads(response)
         except json.decoder.JSONDecodeError:
             # LLM gave a response that was unexpected as it did not only contain
             # JSON data.

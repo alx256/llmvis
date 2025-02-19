@@ -1,8 +1,10 @@
 from typing import Optional
 
 from llmvis.visualization import Visualization
-from llmvis.visualization.visualization import LineChart
+from llmvis.visualization.visualization import LineChart, Point
 from llmvis.visualization.linked_files import relative_file_read
+from llmvis.core.js_tools import list_as_js
+
 
 class WordSpecificLineChart(LineChart):
     """
@@ -13,14 +15,14 @@ class WordSpecificLineChart(LineChart):
     switch between the line charts for all the different words.
     """
 
-    def __init__(self, word_values: dict[str, list[list[any]]], t_values: list[int]):
+    def __init__(self, word_values: dict[str, list[Point]], t_values: list[int]):
         """
         Create a new `WordSpecificLineChart` `Visualization`.
 
         Args:
-            word_values (dict[str, list[list[any]]]): A dictionary mapping each word
-                to the line chart data. See `LineChart` for information on how this
-                data should be formatted.
+            word_values (dict[str, list[Point]]): A dictionary mapping each word
+                to a `Point` that will be shown on the line chart. See `LineChart`
+                and `Point` for information on how this data should be formatted.
             t_values (list[int]): A list of integers for the complete temperature
                 values that were used for sampling. This is required so that if
                 in a given word it is missing a frequency for a given temperature,
@@ -31,28 +33,30 @@ class WordSpecificLineChart(LineChart):
         self.__word = list(word_values.keys())[0]
         self.__word_values = word_values
         self.__t_values = t_values
-        
-        super().__init__(self.__filled_list(self.__word))
-        self.__textbox_id = str(self.get_uuid()) + '0'
 
-    def get_name(self):
-        return 'Word-Specific Line Chart'
+        super().__init__(self.__filled_list(self.__word))
+        self.__textbox_id = str(self.get_uuid()) + "0"
+        self.__name__ = "Word-Specific Line Chart"
 
     def get_html(self):
-        html = '<input type="text" class="llmvis-textbox" placeholder="Enter a word..." '
+        html = (
+            '<input type="text" class="llmvis-textbox" placeholder="Enter a word..." '
+        )
         html += f'id="{self.__textbox_id}" value="{self.__word}">'
-        html += '<br>'
+        html += "<br>"
         return html + super().get_html()
 
     def get_js(self):
-        js = self.call_function('connectFieldToLineChart',
-                                 f'"{self.get_uuid()}"',
-                                 f'"{self.__textbox_id}"',
-                                 self.__values_as_object())
+        js = self.call_function(
+            "connectFieldToLineChart",
+            f'"{self.get_uuid()}"',
+            f'"{self.__textbox_id}"',
+            self.__values_as_object(),
+        )
         return js + super().get_js()
 
     def get_dependencies(self):
-        return ['../js/word_specific_line_chart.js'] + super().get_dependencies()
+        return ["../js/word_specific_line_chart.js"] + super().get_dependencies()
 
     def __values_as_object(self):
         """
@@ -73,21 +77,27 @@ class WordSpecificLineChart(LineChart):
         # "word_n" : <filled list of line chart values for word_n>
         # }
 
-        obj = '{'
+        obj = "{"
 
         for i, key in enumerate(self.__word_values.keys()):
-            obj += '"' + key + '"' + ':' + str(self.__filled_list(key))
+            obj += (
+                '"'
+                + key
+                + '"'
+                + ":"
+                + list_as_js(self.__filled_list(key), do_conversion=True)
+            )
 
             if i < len(self.__word_values.keys()) - 1:
-                obj += ','
+                obj += ","
 
-        obj += '}'
+        obj += "}"
 
         return obj
 
-    def __filled_list(self, word: str) -> list[list[any]]:
+    def __filled_list(self, word: str) -> str:
         """
-        Get the list containing raw line chart data for a given
+        Get a string containing raw line chart data for a given
         `word`, with any missing values filled as 0. Useful for
         giving a consistent line chart x-axis between different
         charts.
@@ -97,9 +107,8 @@ class WordSpecificLineChart(LineChart):
                 chart data filled.
 
         Returns:
-            A 2D list containing the original line chart data for
-            `word` but with any missing data inserted with a value
-            of `0`.
+            A string containing the JavaScript representation of
+            the filled list.
         """
 
         values = self.__word_values[word]
@@ -112,13 +121,14 @@ class WordSpecificLineChart(LineChart):
         filled = []
 
         for t in self.__t_values:
-            if i < len(values) and values[i][0] == t:
+            if i < len(values) and values[i].x == t:
                 filled.append(values[i])
                 i += 1
             else:
-                filled.append([t, 0.0])
+                filled.append(Point(t, 0.0))
 
         return filled
+
 
 class AIClassifier(Visualization):
     """
@@ -149,23 +159,23 @@ class AIClassifier(Visualization):
         super().__init__()
         self.__items = items
         self.__t_values = t_values
-
-    def get_name(self) -> str:
-        return 'AI Classifier'
+        self.__name__ = "AI Classifier"
 
     def get_html(self) -> str:
         if self.__items is None:
-            return '<p>Failed to classify data</p>'
+            return "<p>Failed to classify data</p>"
 
         html = f'<canvas id="{self.get_uuid()}" width="1280" height="500"'
-        html += '</canvas>'
+        html += "</canvas>"
         return html
 
     def get_js(self) -> str:
         if self.__items is None:
-            return ''
+            return ""
 
-        return self.call_function('drawAiClassifier', f'"{self.get_uuid()}"', self.__items, self.__t_values)
+        return self.call_function(
+            "drawAiClassifier", f'"{self.get_uuid()}"', self.__items, self.__t_values
+        )
 
     def get_dependencies(self):
-        return ['../js/ai_classifier.js']
+        return ["../js/ai_classifier.js"]
