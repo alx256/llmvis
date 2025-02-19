@@ -572,7 +572,9 @@ class BarChart(Visualization):
     values, display a coloured bar chart for each value.
     """
 
-    def __init__(self, values: list[list[any]]):
+    def __init__(
+        self, values: list[list[any]], x_axis_label: str = "", y_axis_label: str = ""
+    ):
         """
         Create a new `BarChart` `Visualization` from a list
         of values.
@@ -584,10 +586,18 @@ class BarChart(Visualization):
                 is the categorical value that will be shown on the
                 x-axis and the second element is the numerical (real
                 or integer) value that will be shown on the y-axis.
+            x_axis_label (str): The label that should be displayed
+                under the x-axis in order to describe it. Can be empty
+                to show no label. Default is empty string.
+            y_axis_label (str): The label that should be displayed
+                next to the y-axis in order to describe it. Can be empty
+                to show no label. Default is empty string.
         """
         super().__init__()
         self.__values = values
         self.__name__ = "Bar Chart"
+        self.__x_axis_label__ = x_axis_label
+        self.__y_axis_label__ = y_axis_label
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
@@ -597,7 +607,11 @@ class BarChart(Visualization):
 
     def get_js(self) -> str:
         return self.call_function(
-            "drawBarChart", f'"{self.get_uuid()}"', self.__get_js_values()
+            "drawBarChart",
+            f'"{self.get_uuid()}"',
+            self.__get_js_values(),
+            f'"{self.__x_axis_label__}"',
+            f'"{self.__y_axis_label__}"',
         )
 
     def get_dependencies(self):
