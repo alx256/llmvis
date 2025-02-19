@@ -38,8 +38,9 @@ async function loadFonts() {
  */
 function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
     const BOX_RADIUS = 35;
-    const SPACING = 5;
-    const NEWLINE_SPACING = 24;
+    const HORIZONTAL_SPACING = 5;
+    const VERTICAL_SPACING = 4;
+    const NEWLINE_SPACING = 6;
     const FREE_SPACE = width - BOX_RADIUS / 2;
 
     // Flip box if it is on track to going offscreen
@@ -83,7 +84,6 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
                 const ascent = wordMeasurement.fontBoundingBoxAscent;
                 const descent = wordMeasurement.fontBoundingBoxDescent;
                 const fontWidth = wordMeasurement.width;
-                const fontHeight = ascent + descent;
 
                 ctx.fillStyle = item.color;
 
@@ -100,24 +100,24 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
                     words[k] = word;
                     k -= 1;
                     continue;
-                } else if (textXPos + fontWidth + SPACING > FREE_SPACE) {
+                } else if (textXPos + fontWidth + HORIZONTAL_SPACING > FREE_SPACE) {
                     // Text has gone out of bounds- wrap it around to the next line
                     textXPos = BOX_RADIUS / 2;
-                    textYPos += fontHeight + SPACING;
+                    textYPos += fontSize + VERTICAL_SPACING;
                 }
 
-                var potentialNextWordY
+                var potentialNextWordY;
 
                 if (k < words.length - 1) {
-                    if (textXPos + fontWidth + ctx.measureText(words[k + 1]).width + SPACING > FREE_SPACE) {
-                        potentialNextWordY = textYPos + fontHeight + SPACING;
+                    if (textXPos + fontWidth + ctx.measureText(words[k + 1]).width + HORIZONTAL_SPACING > FREE_SPACE) {
+                        potentialNextWordY = textYPos + fontSize + VERTICAL_SPACING;
                     }
                 } else if (j < line.length - 1 && line.length > 0) {
-                    if (textXPos + fontWidth + ctx.measureText(line[j + 1][0]).width + SPACING > FREE_SPACE) {
-                        potentialNextWordY = textYPos + fontHeight + SPACING;
+                    if (textXPos + fontWidth + ctx.measureText(line[j + 1][0]).width + HORIZONTAL_SPACING > FREE_SPACE) {
+                        potentialNextWordY = textYPos + fontSize + VERTICAL_SPACING;
                     }
                 } else if (i < contents.length - 1 && contents[i + 1].length > 0) {
-                    potentialNextWordY = textYPos + fontHeight + SPACING;
+                    potentialNextWordY = textYPos + fontSize + NEWLINE_SPACING;
                 } else {
                     potentialNextWordY = textYPos;
                 }
@@ -130,7 +130,7 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
                 }
 
                 ctx.fillText(word, xPos + textXPos, yPos + textYPos);
-                textXPos += fontWidth + SPACING;
+                textXPos += fontWidth + HORIZONTAL_SPACING;
             }
         }
 
@@ -139,6 +139,6 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
         }
 
         textXPos = BOX_RADIUS / 2;
-        textYPos += NEWLINE_SPACING;
+        textYPos += fontSize + NEWLINE_SPACING;
     }
 }
