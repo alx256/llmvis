@@ -88,6 +88,13 @@ Output: {
 
 MEDIATION_ATTEMPTS = 5
 
+# IDs for metrics
+# Used for tracking what the last executed metric
+# was.
+WORD_IMPORTANCE_GEN_SHAPLEY = 0
+WORD_IMPORTANCE_EMBED_SHAPLEY = 1
+K_TEMPERATURE_SAMPLING = 2
+
 
 class Connection(abc.ABC):
     """
@@ -96,6 +103,14 @@ class Connection(abc.ABC):
     Override this class to add support for LLMVis integrating with another
     service.
     """
+
+    def __init__(self):
+        """
+        Create a new `Connection`.
+        """
+
+        self.__last_metric_id__ = -1
+        self.__last_metric_data__ = None
 
     def token_importance_gen(self, prompt: str):
         """
@@ -263,8 +278,6 @@ class Connection(abc.ABC):
         k: int,
         start: float = 0.0,
         end: float = 1.0,
-        enable_mediation: bool = False,
-        mediator_connection: Optional[Connection] = None,
     ) -> Visualizer:
         """
         Sample `k` temperature values starting with `start` and ending
@@ -280,20 +293,6 @@ class Connection(abc.ABC):
                 is 0.0. Must be less than `end`.
             end (float): The ending temperature value. Default is
                 1.0. Must be greater than `start`.
-            enable_mediation (bool): Set to `True` to enable the
-                AI mediator tools. These use an external "mediator"
-                model to visualize additional insights about results.
-                Enabling this will show an additional visualization
-                containing the different overlapping concepts for
-                each temperature sample and a line chart with the
-                detected hallucinations for each sample.
-                Default is `False`. Note that enabling this will take
-                additional computation time and has the potential to be
-                inaccurate.
-            mediator_connection (Optional[Connection]): The `Connection`
-                that should be used for mediator visualizations.
-                Setting this to `None` will just use this `Connection`.
-                Default is `None`.
 
         Returns:
             A `Visualizer` showing a table containing the results of the
@@ -384,82 +383,133 @@ class Connection(abc.ABC):
         line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
         line_chart.set_comments(self.__get_info__())
 
-        visualizations = [table_heatmap, bar_chart, line_chart]
+        self.__last_metric_id__ = K_TEMPERATURE_SAMPLING
+        self.__last_metric_data__ = {
+            "samples": table_contents,
+            "temperatures": temperatures,
+        }
 
-        if enable_mediation:
-            response_data = None
-            attempts = 0
-            t = 0.0
+        return Visualizer([table_heatmap, bar_chart, line_chart])
 
-            while response_data is None:
-                if attempts >= MEDIATION_ATTEMPTS:
-                    break
+    def ai_analytics(self) -> Visualizer:
+        """
+        Get a `Visualizer` containing relevant additional AI-generated
+        analytics for the metric that was run most recently, provided that
+        it is supported.
 
-                response_data = (mediator_connection or self).__mediate__(
-                    prompt=MEDIATION_PROMPT,
-                    data=table_contents,
-                    format={
-                        "type": "object",
-                        "properties": {
-                            "classes": {
+        #### Supported Metrics
+        - **K Temperature Sampling**: Can be used to show an AI-generated
+            graph classifying each temperature value into a number of
+            classes and AI-generated hallucination detection.
+
+        Returns:
+            A `Visualizer` that can be used to visualize relevant additional
+            AI-generated analytics regarding the most recently run metric.
+
+        Raises:
+            RuntimeError: Raised if this is being executed when the most recent
+                metric does not support AI analytics or no metric was run just
+                before calling this.
+        """
+
+        if self.__last_metric_id__ == -1:
+            raise RuntimeError("Cannnot show AI analytics if no metrics have been run!")
+
+        if self.__last_metric_id__ == K_TEMPERATURE_SAMPLING:
+            return self.__k_temperature_sampling_ai_analytics__()
+
+        raise RuntimeError(
+            "Tried to show AI analytics for a metric that does not support this!"
+        )
+
+    def __k_temperature_sampling_ai_analytics__(self) -> Visualizer:
+        """
+        AI Analytics for K Temperature Sampling. Generates visualizations for
+        classifying temperature values into common classes as well as LLM-powered
+        hallucination detection.
+
+        Returns:
+            A `Visualizer` that can be used to visualize the additional
+            visualizations.
+        """
+
+        samples = self.__last_metric_data__["samples"]
+        temperatures = self.__last_metric_data__["temperatures"]
+        response_data = None
+        attempts = 0
+        t = 0.0
+
+        while response_data is None:
+            if attempts >= MEDIATION_ATTEMPTS:
+                break
+
+            response_data = self.__mediate__(
+                prompt=MEDIATION_PROMPT,
+                data=samples,
+                format={
+                    "type": "object",
+                    "properties": {
+                        "classes": {
+                            "type": "array",
+                            "items": {
                                 "type": "array",
-                                "items": {
-                                    "type": "array",
-                                    "items": [
-                                        {"type": "string"},
-                                        {"type": "array", "items": {"type": "number"}},
-                                    ],
-                                    "minItems": 2,
-                                    "maxItems": 2,
-                                },
-                            },
-                            "hallucinations": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "t": {"type": "number"},
-                                        "count": {"type": "number"},
-                                        "explanation": {"type": "string"},
-                                    },
-                                },
-                                "minItems": len(samples),
-                                "maxItems": len(samples),
+                                "items": [
+                                    {"type": "string"},
+                                    {"type": "array", "items": {"type": "number"}},
+                                ],
+                                "minItems": 2,
+                                "maxItems": 2,
                             },
                         },
+                        "hallucinations": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "t": {"type": "number"},
+                                    "count": {"type": "number"},
+                                    "explanation": {"type": "string"},
+                                },
+                            },
+                            "minItems": len(samples),
+                            "maxItems": len(samples),
+                        },
                     },
-                    temperature=t,
-                )
-                attempts += 1
-                t += 1.0 / MEDIATION_ATTEMPTS
+                },
+                temperature=t,
+            )
+            attempts += 1
+            t += 1.0 / MEDIATION_ATTEMPTS
 
-            try:
-                ai_classifier = AIClassifier(
-                    (response_data["classes"] if "classes" in response_data else []),
-                    temperatures,
-                )
-                ai_classifier.set_comments(self.__get_info__())
-                visualizations.append(ai_classifier)
-            except KeyError:
-                # TODO: Error
-                pass
+        visualizations = []
 
-            try:
-                if len(response_data["hallucinations"]) >= 2:
-                    hallucinations_line_chart = LineChart(
-                        [
-                            Point(r["t"], r["count"], r["explanation"])
-                            for r in response_data["hallucinations"]
-                        ]
-                        if "hallucinations" in response_data
-                        else []
-                    )
-                    hallucinations_line_chart.set_comments(self.__get_info__())
-                    hallucinations_line_chart.set_name("Hallucinations Line Chart")
-                    visualizations.append(hallucinations_line_chart)
-            except KeyError:
-                # TODO: Error
-                pass
+        try:
+            ai_classifier = AIClassifier(
+                (response_data["classes"] if "classes" in response_data else []),
+                temperatures,
+            )
+            ai_classifier.set_comments(self.__get_info__())
+            visualizations.append(ai_classifier)
+        except KeyError:
+            # TODO: Error
+            pass
+
+        try:
+            if len(response_data["hallucinations"]) >= 2:
+                hallucinations_line_chart = LineChart(
+                    [
+                        Point(r["t"], r["count"], r["explanation"])
+                        for r in response_data["hallucinations"]
+                    ]
+                    if "hallucinations" in response_data
+                    else []
+                )
+                hallucinations_line_chart.set_comments(self.__get_info__())
+                hallucinations_line_chart.set_name("Hallucinations Line Chart")
+                visualizations.append(hallucinations_line_chart)
+        except KeyError:
+            # TODO: Error
+            pass
 
         return Visualizer(visualizations)
 
@@ -575,6 +625,8 @@ class OllamaConnection(Connection):
                 + " was not able to be pulled. Check that it is a supported model."
             )
 
+        super().__init__()
+
     def __get_info__(self):
         return "Model: " + self._model_name + " (through Ollama)"
 
@@ -637,6 +689,8 @@ class WatsonXConnection(Connection):
         self.__access_token__ = access_token_details["access_token"]
         self.__expiration__ = access_token_details["expiration"]
         self.__project_id__ = project_id
+
+        super().__init__()
 
     def __get_access_token__(self, api_key: str) -> dict[str, any]:
         """
