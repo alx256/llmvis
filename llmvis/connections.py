@@ -5,6 +5,7 @@ import ollama
 import numpy as np
 from typing_extensions import Optional
 import json
+import requests
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -226,14 +227,8 @@ class Connection(abc.ABC):
             self.__flatten_words(combination, delimiter=" ")
             for combination in combinator.get_combinations()
         ]
-        embeddings = []
 
-        for i, request in enumerate(requests):
-            print(f"Calculating {i}/{len(requests)}...")
-            embeddings.append(self.__calculate_embeddings(request)[0])
-
-        embeddings = np.array(embeddings)
-
+        embeddings = np.array(self.__calculate_embeddings(requests))
         similarities = cosine_similarity(
             embeddings[0].reshape(1, -1), embeddings[1:]
         ).flatten()
@@ -381,7 +376,9 @@ class Connection(abc.ABC):
         )
         # Don't want too many bars on the bar chart
         frequencies_list = frequencies_list[:7]
-        bar_chart = BarChart(frequencies_list)
+        bar_chart = BarChart(
+            frequencies_list, x_axis_label="Word", y_axis_label="Frequency"
+        )
         bar_chart.set_comments(self.__get_info__())
 
         line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
@@ -559,8 +556,6 @@ class Connection(abc.ABC):
 
 
 class OllamaConnection(Connection):
-    _model_name = ""
-
     def __init__(self, model_name: str):
         """
         Create a new OllamaConnection using the provided model_name.
@@ -611,4 +606,160 @@ class OllamaConnection(Connection):
             # LLM gave a response that was unexpected as it did not only contain
             # JSON data.
 
+            return None
+
+
+class WatsonXConnection(Connection):
+    """
+    Connection to IBM's watsonx.ai service. **Requires both an IBM API Key and a project
+    ID for a watsonx.ai project.** Note that using this connection will consume tokens
+    on the API's end.
+    """
+
+    def __init__(self, api_key: str, project_id: str, model_name: str):
+        """
+        Create a new `WatsonXConnection`. Requires an IBM key and a project ID for a
+        watsonx.ai project.
+
+        Args:
+            api_key (str): The IBM API key that will be used for connecting to the
+                watsonx.ai service.
+            project_id (str): The Project ID for a valid watsonx.ai project.
+            model_name (str): The name of the model that this `WatsonXConnection` should
+                connect to. See the `API model_id` column on
+                [this](https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-models.html?context=wx#ibm-provided)
+                page for more information.
+        """
+
+        self.__model_name__ = model_name
+
+        access_token_details = self.__get_access_token__(api_key)
+        self.__access_token__ = access_token_details["access_token"]
+        self.__expiration__ = access_token_details["expiration"]
+        self.__project_id__ = project_id
+
+    def __get_access_token__(self, api_key: str) -> dict[str, any]:
+        """
+        Use the IBM Access Token API to generate a new access token based on
+        the provided API key.
+
+        Args:
+            api_key (str): The API key that should be used for generating an
+                access token.
+
+        Returns:
+            A dictionary representing the response to the access token API.
+            The `"access_token"` key contains the token itself and
+            `"expiration"` contains time when the token expires.
+        """
+
+        response = requests.post(
+            "https://iam.cloud.ibm.com/identity/token",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data=f"grant_type=urn:ibm:params:oauth:grant-type:apikey&apikey={api_key}",
+        ).json()
+
+        return response
+
+    def __get_url__(self, page: str) -> str:
+        """
+        Get the endpoint URL for a given page.
+
+        Args:
+            page (str): The page that the URL will access. Possible pages include `generation`,
+                `embeddings` and `chat`.
+
+        Return:
+            A string containing the URL with the provided `page` embedded inside it.
+        """
+
+        return f"https://eu-gb.ml.cloud.ibm.com/ml/v1/text/{page}?version=2023-05-29"
+
+    def __get_info__(self):
+        return "Model: " + self.__model_name__ + " (through watsonx.ai)"
+
+    def _Connection__make_request(self, prompt: str, temperature: int) -> str:
+        response = requests.post(
+            self.__get_url__("generation"),
+            headers={
+                "Authorization": f"Bearer {self.__access_token__}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model_id": self.__model_name__,
+                "input": prompt,
+                "parameters": {
+                    "max_new_tokens": 100,
+                    "time_limit": 1000,
+                    "temperature": temperature,
+                },
+                "project_id": self.__project_id__,
+            },
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Tried to generate response but got errors: {response.json()['errors']}"
+            )
+
+        return " ".join([c["generated_text"] for c in response.json()["results"]])
+
+    def _Connection__calculate_embeddings(
+        self, prompts: list[str]
+    ) -> list[list[float]]:
+        response = requests.post(
+            self.__get_url__("embeddings"),
+            headers={
+                "Authorization": f"Bearer {self.__access_token__}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json={
+                "inputs": prompts,
+                "model_id": "ibm/granite-embedding-107m-multilingual",  # TODO: Support specific embedding model for model_name
+                "project_id": self.__project_id__,
+            },
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Tried to generate embedding but got errors: {response.json()['errors']}"
+            )
+
+        return [r["embedding"] for r in response.json()["results"]]
+
+    def __mediate__(
+        self, prompt: str, data: list[any], format: dict[any, any], temperature: int
+    ) -> Optional[dict[any, any]]:
+        response = requests.post(
+            self.__get_url__("chat"),
+            headers={
+                "Authorization": f"Bearer {self.__access_token__}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model_id": self.__model_name__,
+                "project_id": self.__project_id__,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": json.dumps({"input": data})}
+                        ],
+                    },
+                ],
+                "temperature": temperature,
+            },
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Tried to mediate but got code {response.status_code} and errors: {response.json()['errors']}"
+            )
+
+        try:
+            return json.loads(response.json()["choices"][0]["message"]["content"])
+        except json.JSONDecodeError:
             return None

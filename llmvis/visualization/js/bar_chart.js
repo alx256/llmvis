@@ -170,7 +170,7 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const Y_LABEL_MEASUREMENTS = BAR_CHART_CTX.measureText(yLabel);
     const Y_LABEL_HEIGHT = Y_LABEL_MEASUREMENTS.actualBoundingBoxAscent + Y_LABEL_MEASUREMENTS.actualBoundingBoxDescent;
     const Y_LABEL_X = AXIS_START_POINT_X - Y_TICK_LENGTH - maxYTick - Y_AXIS_LABEL_SPACING;
-    const Y_LABEL_Y = (AXIS_START_POINT_Y - AXIS_END_POINT_Y)/2 + Y_LABEL_MEASUREMENTS.width*2;
+    const Y_LABEL_Y = (AXIS_START_POINT_Y + AXIS_END_POINT_Y) / 2 + Y_LABEL_MEASUREMENTS.width/2;
     BAR_CHART_CTX.save();
     BAR_CHART_CTX.translate((Y_LABEL_X  - Y_LABEL_HEIGHT < 0) ? Y_LABEL_HEIGHT : Y_LABEL_X, Y_LABEL_Y);
     BAR_CHART_CTX.rotate(-90*Math.PI/180);

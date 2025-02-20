@@ -1,1 +1,1 @@
-from llmvis.connections import OllamaConnection
+from llmvis.connections import OllamaConnection, WatsonXConnection
