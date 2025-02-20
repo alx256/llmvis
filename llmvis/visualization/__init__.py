@@ -8,7 +8,8 @@ import webbrowser
 from llmvis.visualization.visualization import Visualization
 from llmvis.visualization.linked_files import read_html, read_css, relative_file_read
 
-class Visualizer():
+
+class Visualizer:
     """
     Used to visualize some data either in a Jupyter notebook
     environment or as a standalone window.
@@ -44,7 +45,7 @@ class Visualizer():
         """
 
         environment = str(type(get_ipython()))
-        is_jupyter = 'zmqshell' in environment
+        is_jupyter = "zmqshell" in environment
 
         if is_jupyter:
             # Jupyter Notebook
@@ -53,16 +54,16 @@ class Visualizer():
         else:
             # Write the HTML data to a file first so we can just open
             # this using the browser
-            llmvis_dir = pathlib.Path.home() / '.llmvis'
+            llmvis_dir = pathlib.Path.home() / ".llmvis"
 
             if not os.path.isdir(llmvis_dir):
                 os.mkdir(llmvis_dir)
 
-            out = llmvis_dir / 'out.html'
-            out.write_text(self.get_html() + '<script>' + self.get_js() + '</script>')
+            out = llmvis_dir / "out.html"
+            out.write_text(self.get_html() + "<script>" + self.get_js() + "</script>")
 
-            webbrowser.open(f'file://{out}')
-    
+            webbrowser.open(f"file://{out}")
+
     def merge(self, other: Visualizer):
         """
         Merge this `Visualizer` with another, showing the `Visualization`s
@@ -80,10 +81,9 @@ class Visualizer():
             if key in self.__visualizations:
                 self.__visualizations[key] += other.__visualizations[key]
                 remaining_keys.remove(key)
-        
+
         for remaining in remaining_keys:
             self.__visualizations[remaining] = other.__visualizations[remaining]
-
 
     def get_source(self) -> str:
         """
@@ -91,7 +91,7 @@ class Visualizer():
         HTML and JavaScript code that can be used to display all the
         `Visualization`s that this `Visualizer` has with tabs to switch between
         them.
-        
+
         It is recommended that you use this when embedding a `Visualizer` in some
         web context. However, if you just need the HTML representation, use
         `get_html()` and if you just need the JavaScript code, use `get_js()`.
@@ -101,7 +101,7 @@ class Visualizer():
             necessary JavaScript functionality.
         """
 
-        return self.get_html() + '<script>' + self.get_js() + '</script>'
+        return self.get_html() + "<script>" + self.get_js() + "</script>"
 
     def get_html(self) -> str:
         """
@@ -119,15 +119,19 @@ class Visualizer():
         """
 
         # Embed CSS directly into the HTML
-        style = read_css('css/style.css')
-        prelude = read_html('html/prelude.html')
-        rgb = f'rgb(23, 21, 33)'
+        style = read_css("css/style.css")
+        prelude = read_html("html/prelude.html")
+        rgb = f"rgb(23, 21, 33)"
 
-        html = '<html>'
-        html += '<head>'
+        html = "<!DOCTYPE html>"
+        html += "<html>"
+        html += "<head>"
+        html += "<title>"
+        html += "LLMVis"
+        html += "</title>"
         html += prelude
         html += style
-        html += '</head>'
+        html += "</head>"
         html += f'<body style="background-color: {rgb}; margin: 0px;">'
         html += '<div id="llmvis-tabs-container">'
         html += '<div class="llmvis-tabs">'
@@ -135,34 +139,34 @@ class Visualizer():
             html += f'<button class="llmvis-tab" onclick="openVisualization({i})">'
             html += '<div class="llmvis-text">'
             html += name
-            html += '</div>'
-            html += '</button>'
-        html += '</div>'
-        html += '</div>'
+            html += "</div>"
+            html += "</button>"
+        html += "</div>"
+        html += "</div>"
         for name in self.__visualizations.keys():
             html += '<div class="llmvis-visualization-content">'
-            html += '<table>'
-            html += '<tr>'
+            html += "<table>"
+            html += "<tr>"
             for v in self.__visualizations[name]:
-                html += '<td>'
-                html += '<table>'
-                html += '<tr>'
-                html += '<td>'
+                html += "<td>"
+                html += "<table>"
+                html += "<tr>"
+                html += "<td>"
                 html += v.get_html()
-                html += '</td>'
-                html += '</tr>'
-                html += '<tr>'
-                html += '<td>'
+                html += "</td>"
+                html += "</tr>"
+                html += "<tr>"
+                html += "<td>"
                 html += v.get_comments_html()
-                html += '</td>'
-                html += '</tr>'
-                html += '</table>'
-                html += '</td>'
-            html += '</tr>'
-            html += '</table>'
-            html += '</div>'
-        html += '</body>'
-        html += '</html>'
+                html += "</td>"
+                html += "</tr>"
+                html += "</table>"
+                html += "</td>"
+            html += "</tr>"
+            html += "</table>"
+            html += "</div>"
+        html += "</body>"
+        html += "</html>"
 
         return html
 
@@ -171,17 +175,17 @@ class Visualizer():
         Get a JavaScript script containing everything that is needed
         in one place. This includes the required JS scripts as well as
         scripts that independent visualizations may (or may not) provide.
-        
+
         Returns:
             A string representation of the JS script that can be either directly
             embedded into HTML between `<script>` tags or executed independently
             through IPython's `Javascript` object.
         """
-        script = ''
+        script = ""
 
         # Add required scripts
-        script += relative_file_read('js/core.js')
-        script += relative_file_read('js/tabs.js')
+        script += relative_file_read("js/core.js")
+        script += relative_file_read("js/tabs.js")
 
         # Add any scripts from visualizations
         added = set()
