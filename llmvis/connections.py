@@ -382,7 +382,9 @@ class Connection(abc.ABC):
         )
         # Don't want too many bars on the bar chart
         frequencies_list = frequencies_list[:7]
-        bar_chart = BarChart(frequencies_list)
+        bar_chart = BarChart(
+            frequencies_list, x_axis_label="Word", y_axis_label="Frequency"
+        )
         bar_chart.set_comments(self.__get_info__())
 
         line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
