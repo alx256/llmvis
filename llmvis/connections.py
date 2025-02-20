@@ -227,14 +227,8 @@ class Connection(abc.ABC):
             self.__flatten_words(combination, delimiter=" ")
             for combination in combinator.get_combinations()
         ]
-        embeddings = []
 
-        for i, request in enumerate(requests):
-            print(f"Calculating {i}/{len(requests)}...")
-            embeddings.append(self.__calculate_embeddings(request)[0])
-
-        embeddings = np.array(embeddings)
-
+        embeddings = np.array(self.__calculate_embeddings(requests))
         similarities = cosine_similarity(
             embeddings[0].reshape(1, -1), embeddings[1:]
         ).flatten()
@@ -710,7 +704,9 @@ class WatsonXConnection(Connection):
 
         return " ".join([c["generated_text"] for c in response.json()["results"]])
 
-    def _Connection__calculate_embeddings(self, prompts: list[str]):
+    def _Connection__calculate_embeddings(
+        self, prompts: list[str]
+    ) -> list[list[float]]:
         response = requests.post(
             self.__get_url__("embeddings"),
             headers={
@@ -720,7 +716,7 @@ class WatsonXConnection(Connection):
             },
             json={
                 "inputs": prompts,
-                "model_id": "granite-embedding-107m-multilingual",  # TODO: Support specific embedding model for model_name
+                "model_id": "ibm/granite-embedding-107m-multilingual",  # TODO: Support specific embedding model for model_name
                 "project_id": self.__project_id__,
             },
         )
@@ -730,7 +726,7 @@ class WatsonXConnection(Connection):
                 f"Tried to generate embedding but got errors: {response.json()['errors']}"
             )
 
-        return [str(r) for r in response.json()["results"]["embedding"]]
+        return [r["embedding"] for r in response.json()["results"]]
 
     def __mediate__(
         self, prompt: str, data: list[any], format: dict[any, any], temperature: int
