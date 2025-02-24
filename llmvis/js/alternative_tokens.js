@@ -26,6 +26,7 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
     var chunks;
     var chunkWidth;
     var xOffset;
+    var stoppedScrolling = false;
 
     // Redraw the visualization and refit it to the screen.
     const UPDATE = function() {
@@ -45,6 +46,13 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
     };
 
     window.addEventListener("resize", UPDATE);
+    CANVAS.parentElement.addEventListener("scroll", function() {
+        if (stoppedScrolling) {
+            stoppedScrolling = false;
+            // Update to remove the tooltip
+            UPDATE();
+        }
+    });
 
     CANVAS.onmousemove = function(event) {
         if (!chunks) {
@@ -52,6 +60,8 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
         }
 
         UPDATE();
+
+        stoppedScrolling = true;
 
         const mouseX = event.offsetX - RECT.left;
         const mouseY = event.clientY - RECT.top;
