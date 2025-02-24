@@ -19,11 +19,23 @@
 function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, fallbackTokens) {
     const CANVAS = document.getElementById(canvasId);
     const CTX = CANVAS.getContext('2d');
+    const RECT = CANVAS.getBoundingClientRect();
+    const TOOLTIP_WIDTH = 200;
+    const TOOLTIP_HEIGHT = 80;
+
+    var chunks;
+    var chunkWidth;
+    var xOffset;
 
     // Redraw the visualization and refit it to the screen.
     const UPDATE = function() {
-        const FURTHEST_EXTENT = updateAlternativeTokens(CTX,
+        const DRAW_RESULT = updateAlternativeTokens(CTX,
             candidateTokenGroups, selectedIndices, fallbackTokens);
+        const FURTHEST_EXTENT = DRAW_RESULT.furthestExtent;
+
+        chunks = DRAW_RESULT.chunks;
+        chunkWidth = DRAW_RESULT.chunkWidth;
+        xOffset = DRAW_RESULT.xOffset;
 
         if (FURTHEST_EXTENT > window.innerWidth) {
             CANVAS.width = FURTHEST_EXTENT;
@@ -33,6 +45,31 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
     };
 
     window.addEventListener("resize", UPDATE);
+
+    CANVAS.onmousemove = function(event) {
+        if (!chunks) {
+            return;
+        }
+
+        UPDATE();
+
+        const mouseX = event.offsetX - RECT.left;
+        const mouseY = event.clientY - RECT.top;
+        const CHUNK_LOCATION = Math.floor((mouseX - xOffset) / chunkWidth);
+        const CHUNK = chunks.get(CHUNK_LOCATION);
+
+        if (CHUNK) {
+            for (TOKEN of CHUNK) {
+                if (mouseY >= TOKEN.yStart && mouseY <= TOKEN.yEnd) {
+                    drawTooltip([[{text: `Log Probability: ${TOKEN.prob}`, color: "black"}]],
+                        mouseX, mouseY,
+                        TOOLTIP_WIDTH, TOOLTIP_HEIGHT,
+                        12, CTX);
+                }
+            }
+        }
+    }
+
     UPDATE();
 }
 
@@ -44,9 +81,8 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
  * @param {Object} candidateTokenGroups See {@link drawAlternativeTokens}
  * @param {*} selectedIndices See {@link drawAlternativeTokens}
  * @param {*} fallbackTokens See {@link drawAlternativeTokens}
- * @returns A number containing the "furthest extent" of the visualization,
- * i.e. the furthest point drawn as part of the visualization. This can be used
- * to adjust parameters to fit thte visualization on the screen accordingly.
+ * @returns An object with information about the visualization that was just
+ * drawn.
  */
 function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens) {
     const FALLBACK_STACK = fallbackTokens.slice().reverse(); // Slice to create copy
@@ -59,13 +95,21 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     const Y_SPACING = 20;
     const FONT_SIZE = 35;
     const CONNECTOR_SPACING = 12;
-
+    
     var yPosition;
     var xPosition = STARTING_X_POSITION;
-
+    
     ctx.font = `${FONT_SIZE}px DidactGothic`;
     ctx.strokeStyle = STROKE_COLOR;
     ctx.beginPath();
+
+    const CHUNK_WIDTH = Math.max(
+        ...candidateTokenGroups.map(
+            (g) => g.map(
+                (t) => ctx.measureText(t.text).width)
+        ).flat().concat(fallbackTokens.map((t) => ctx.measureText(t.text).width),
+            ctx.measureText("...").width)
+    ) + X_SPACING;
 
     /*
     Will be used to store the (x, y) position for
@@ -74,6 +118,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     */
     var lastCurvePoint;
     var furthestExtent;
+    var chunks = new Map();
 
     for (i = 0; i < candidateTokenGroups.length; i++) {
         const GROUP = candidateTokenGroups[i];
@@ -113,6 +158,16 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             }
 
             ctx.fillText(TEXT, xPosition, yPosition);
+
+            const CHUNK_LOCATION = Math.floor((xPosition - STARTING_X_POSITION) / CHUNK_WIDTH);
+
+            if (!chunks.get(CHUNK_LOCATION)) {
+                chunks.set(CHUNK_LOCATION, []);
+            }
+
+            chunks.get(CHUNK_LOCATION).push({yStart: yPosition - TEXT_HEIGHT,
+                yEnd: yPosition,
+                prob: PROB});
         
             yPosition += TEXT_HEIGHT + Y_SPACING;
 
@@ -140,6 +195,16 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             connectorStartX = xPosition;
             connectorEndX = xPosition + TEXT_WIDTH;
             connectorY = yPosition - TEXT_HEIGHT/2;
+
+            const CHUNK_LOCATION = Math.floor((xPosition - STARTING_X_POSITION) / CHUNK_WIDTH);
+
+            if (!chunks.get(CHUNK_LOCATION)) {
+                chunks.set(CHUNK_LOCATION, []);
+            }
+
+            chunks.get(CHUNK_LOCATION).push({yStart: yPosition - TEXT_HEIGHT,
+                yEnd: yPosition,
+                prob: FALLBACK_TOKEN.prob});
         }
 
         // Remember to draw a connector
@@ -161,5 +226,8 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     }
 
     ctx.stroke();
-    return furthestExtent;
+    return {furthestExtent: furthestExtent,
+        chunks: chunks,
+        chunkWidth: CHUNK_WIDTH,
+        xOffset: STARTING_X_POSITION};
 }
