@@ -60,7 +60,7 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
 
         if (CHUNK) {
             for (TOKEN of CHUNK) {
-                if (mouseY >= TOKEN.yStart && mouseY <= TOKEN.yEnd) {
+                if (mouseX >= TOKEN.xStart && mouseX <= TOKEN.xEnd && mouseY >= TOKEN.yStart && mouseY <= TOKEN.yEnd) {
                     drawTooltip([[{text: `Log Probability: ${TOKEN.prob}`, color: "black"}]],
                         mouseX, mouseY,
                         TOOLTIP_WIDTH, TOOLTIP_HEIGHT,
@@ -165,9 +165,13 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
                 chunks.set(CHUNK_LOCATION, []);
             }
 
-            chunks.get(CHUNK_LOCATION).push({yStart: yPosition - TEXT_HEIGHT,
+            chunks.get(CHUNK_LOCATION).push({
+                xStart: xPosition,
+                xEnd: xPosition + TEXT_WIDTH,
+                yStart: yPosition - TEXT_HEIGHT,
                 yEnd: yPosition,
-                prob: PROB});
+                prob: PROB
+            });
         
             yPosition += TEXT_HEIGHT + Y_SPACING;
 
@@ -202,7 +206,10 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
                 chunks.set(CHUNK_LOCATION, []);
             }
 
-            chunks.get(CHUNK_LOCATION).push({yStart: yPosition - TEXT_HEIGHT,
+            chunks.get(CHUNK_LOCATION).push({
+                xStart: xPosition,
+                xEnd: xPosition + TEXT_WIDTH,
+                yStart: yPosition - TEXT_HEIGHT,
                 yEnd: yPosition,
                 prob: FALLBACK_TOKEN.prob});
 
