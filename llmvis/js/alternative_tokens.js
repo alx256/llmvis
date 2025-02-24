@@ -205,6 +205,10 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             chunks.get(CHUNK_LOCATION).push({yStart: yPosition - TEXT_HEIGHT,
                 yEnd: yPosition,
                 prob: FALLBACK_TOKEN.prob});
+
+            if (TEXT_WIDTH > maxWidth) {
+                maxWidth = TEXT_WIDTH;
+            }
         }
 
         // Remember to draw a connector
