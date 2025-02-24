@@ -1,5 +1,6 @@
 from typing import Optional
 
+from llmvis.core import js_tools
 from llmvis.visualization import Visualization
 from llmvis.visualization.visualization import LineChart, Point
 from llmvis.visualization.linked_files import relative_file_read
@@ -179,3 +180,99 @@ class AIClassifier(Visualization):
 
     def get_dependencies(self):
         return ["../js/ai_classifier.js"]
+
+
+class Token:
+    """
+    Representation of a token that a model might return,
+    containing the `text` of the token as well as the
+    `prob` (probability) that this token should be
+    next in the sequence.
+    """
+
+    def __init__(self, text: str, prob: float):
+        """
+        Create a new `Token`.
+
+        Args:
+            text (str): The text contents of this token.
+            prob (float): The log probability that this
+                token will be next in the sequence.
+        """
+
+        self.text = text
+        self.prob = prob
+
+    def get_js(self):
+        """
+        Get a JS representation of this token.
+
+        Returns:
+            A string containing JavaScript code for an
+            JavaScript object representation of this
+            token, with `text` and `prob` attributes.
+        """
+
+        return f'{{text: "{self.text}",prob: {self.prob}}}'
+
+
+class AlternativeTokens(Visualization):
+    """
+    `Visualization` of the alternative tokens that the model
+    has available at each output token that is picked.
+    """
+
+    def __init__(
+        self,
+        candidate_token_groups: list[list[Token]],
+        selected_indices: list[int],
+        fallback_tokens: list[Token],
+    ):
+        """
+        Create a new `AlternativeTokens` visualization.
+
+        Args:
+            candidate_token_groups (list[list[Token]]): A list where
+                each element is a list of `Token`s representing the
+                alternative tokens at each output token in the
+                response.
+            selected_indices (list[int]): A list containing the index
+                (starting at 1) for the token that was selected at
+                each stage.
+            fallback_tokens (list[Token]): A list containing the
+                tokens that were selected but were not one of the
+                tokens in the `candidate_token_groups`. Should be
+                sorted so that the fallback token for the earliest
+                group of alternative tokens comes first, the one for
+                the second earliest comes second and so on.
+        """
+
+        super().__init__()
+        self.__candidate_token_groups__ = candidate_token_groups
+        self.__selected_indices__ = selected_indices
+        self.__fallback_tokens__ = fallback_tokens
+        self.__name__ = "Alternative Tokens"
+
+    def get_html(self) -> str:
+        html = '<div style="overflow:auto;">'
+        html += f'<canvas id="{self.get_uuid()}" width="1280" height="500">'
+        html += "</canvas>"
+        html += "</div>"
+        return html
+
+    def get_js(self) -> str:
+        return self.call_function(
+            "drawAlternativeTokens",
+            f'"{self.get_uuid()}"',
+            js_tools.list_as_js(
+                [
+                    js_tools.list_as_js(group, do_conversion=True)
+                    for group in self.__candidate_token_groups__
+                ]
+            ),
+            self.__selected_indices__,
+            js_tools.list_as_js(self.__fallback_tokens__, do_conversion=True),
+        )
+
+    def get_dependencies(self):
+        return ["../js/alternative_tokens.js"]

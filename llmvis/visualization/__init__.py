@@ -145,18 +145,18 @@ class Visualizer:
         html += "</div>"
         for name in self.__visualizations.keys():
             html += '<div class="llmvis-visualization-content">'
-            html += "<table>"
+            html += '<table style="border-spacing:0px;">'
             html += "<tr>"
             for v in self.__visualizations[name]:
-                html += "<td>"
-                html += "<table>"
+                html += '<td style="padding:0px;">'
+                html += '<table style="border-spacing:0px;">'
                 html += "<tr>"
-                html += "<td>"
+                html += '<td style="padding:0px">'
                 html += v.get_html()
                 html += "</td>"
                 html += "</tr>"
                 html += "<tr>"
-                html += "<td>"
+                html += '<td style="padding:0px;">'
                 html += v.get_comments_html()
                 html += "</td>"
                 html += "</tr>"
