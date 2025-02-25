@@ -60,7 +60,10 @@ class Visualizer:
                 os.mkdir(llmvis_dir)
 
             out = llmvis_dir / "out.html"
-            out.write_text(self.get_html() + "<script>" + self.get_js() + "</script>")
+            out.write_text(
+                self.get_html() + "<script>" + self.get_js() + "</script>",
+                encoding="utf-8",
+            )
 
             webbrowser.open(f"file://{out}")
 

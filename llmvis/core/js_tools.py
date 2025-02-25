@@ -1,3 +1,8 @@
+import re
+
+from typing import Optional
+
+
 def list_as_js(list: list[any], do_conversion=False) -> str:
     """
     Convert a list to a JavaScript representation of the list.
@@ -28,3 +33,19 @@ def list_as_js(list: list[any], do_conversion=False) -> str:
 
     js += "]"
     return js
+
+
+def escape_all(string: Optional[str]) -> str:
+    """
+    Given a string, return a new string with necessary special characters
+    escaped. Used for escaping strings so that they can safely be
+    inserted into JavaScript code stored in a string.
+
+    Args:
+        string (str): The string that should necessary special characters
+            escaped.
+
+    Returns:
+        A new string with necessary special characters escaped.
+    """
+    return re.sub(r'([\'\n"\\])', r"\\\1", string)

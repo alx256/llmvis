@@ -4,7 +4,7 @@ from llmvis.core import js_tools
 from llmvis.visualization import Visualization
 from llmvis.visualization.visualization import LineChart, Point
 from llmvis.visualization.linked_files import relative_file_read
-from llmvis.core.js_tools import list_as_js
+from llmvis.core.js_tools import escape_all, list_as_js
 
 
 class WordSpecificLineChart(LineChart):
@@ -202,6 +202,10 @@ class Token:
 
         self.text = text
         self.prob = prob
+
+        # Process text
+        self.text = escape_all(self.text)
+        self.text = self.text.replace("\n", "<newline>")
 
     def get_js(self):
         """
