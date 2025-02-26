@@ -316,8 +316,6 @@ class Connection(abc.ABC):
 
         step = (start + end) / (k - 1)
         t = start
-        # Sample results
-        samples = []
         # Temperature values
         temperatures = []
         # Store the frequency of each word to visualize as a bar chart
@@ -325,16 +323,14 @@ class Connection(abc.ABC):
         # Store the frequencies as temperatures change to visualize as a line chart
         temperature_change_frequencies = {}
 
-        table_contents = []
+        samples = []
         t_values = []
 
         for _ in range(k):
             t_values.append(t)
             sample = self.__make_request(prompt=prompt, temperature=t)
 
-            samples.append(sample)
-
-            table_contents.append([t, sample])
+            samples.append([t, sample])
             temperatures.append(t)
 
             for word in sample.split(" "):
@@ -363,7 +359,9 @@ class Connection(abc.ABC):
             t += step
 
         table_heatmap = TableHeatmap(
-            contents=table_contents, headers=["Sampled Temperature", "Sample Result"]
+            # TODO: Add original rounding approach back
+            contents=[[("{0:.2f}".format(t)), sample] for t, sample in samples],
+            headers=["Sampled Temperature", "Sample Result"],
         )
         table_heatmap.set_comments(self.__get_info__())
 
@@ -391,7 +389,7 @@ class Connection(abc.ABC):
 
         self.__last_metric_id__ = K_TEMPERATURE_SAMPLING
         self.__last_metric_data__ = {
-            "samples": table_contents,
+            "samples": samples,
             "temperatures": temperatures,
         }
 
