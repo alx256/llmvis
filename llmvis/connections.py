@@ -27,6 +27,7 @@ from llmvis.core.preprocess import should_include
 from llmvis.custom_visualizations import (
     AlternativeTokens,
     Token,
+    TokenSpecificRadarChart,
     WordSpecificLineChart,
     AIClassifier,
 )
@@ -429,7 +430,25 @@ class Connection(abc.ABC):
             self.__get_info__(),
             f"Temperature: {temperature}",
         )
-        return Visualizer([alternative_tokens])
+
+        candidate_token_dict = {}
+        fallback_tokens_stack = fallback_tokens.copy()
+
+        for i, group in enumerate(candidate_token_groups):
+            tokens = [[t.text, t.prob] for t in group]
+            selected_token = None
+
+            if selected_indices[i] > len(group):
+                selected_token = fallback_tokens_stack.pop(0)
+                tokens.append([selected_token.text, selected_token.prob])
+            else:
+                selected_token = group[selected_indices[i] - 1]
+
+            candidate_token_dict[selected_token.text] = tokens
+
+        radar_chart = TokenSpecificRadarChart(candidate_token_dict)
+
+        return Visualizer([alternative_tokens, radar_chart])
 
     def ai_analytics(self) -> Visualizer:
         """

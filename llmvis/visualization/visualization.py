@@ -687,7 +687,7 @@ class RadarChart(Visualization):
         self.__name__ = "Radar Chart"
 
     def get_html(self) -> str:
-        html = f'<canvas id="{self.get_uuid()}" width="500" height="500"'
+        html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
         html += "</canvas>"
         return html
 

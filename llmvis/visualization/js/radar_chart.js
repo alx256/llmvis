@@ -12,11 +12,14 @@ function drawRadarChart(canvasId, values) {
     const CTX = CANVAS.getContext("2d");
     const STROKE_COLOR = 'rgb(222, 222, 222)';
 
-    var maxVal = -1;
+    var maxVal = undefined;
+
+    // Clear canvas in case line charts have been drawn before
+    CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
 
     // First pass: find maximum value
     for (value of values) {
-        if (value[1] > maxVal) {
+        if (!maxVal || value[1] > maxVal) {
             maxVal = value[1];
         }
     }
@@ -44,14 +47,16 @@ function drawPolygon(ctx, canvas, values, color, maxVal, fill) {
     const PADDING = 60;
     const RADIUS = canvas.width/2 - PADDING;
     const LABEL_DISTANCE = 8;
-    
-    const ROTATE_ANGLE = (360/values.length)*Math.PI/180;
+    const ROTATE_ANGLE = (2*Math.PI)/values.length;
+    const IS_NEGATIVE = maxVal <= 0;
 
     // Vector for where to draw each point around the circle
     // Start at the "top" of the circle
     var v = [0, -RADIUS];
 
     var firstMove = true;
+    var firstX;
+    var firstY;
 
     ctx.strokeStyle = color;
     ctx.font = "15px DidactGothic";
@@ -59,17 +64,21 @@ function drawPolygon(ctx, canvas, values, color, maxVal, fill) {
     var textDrawPositions = [];
 
     ctx.beginPath();
+
     for (value of values) {
         const NAME = value[0];
         const PROPORTION = value[1];
         const LOCAL_X = v[0];
         const LOCAL_Y = v[1];
-        const GLOBAL_X = canvas.width/2 + LOCAL_X*(PROPORTION/maxVal);
-        const GLOBAL_Y = canvas.height/2 + LOCAL_Y*(PROPORTION/maxVal);
+        const MULTIPLIER = (IS_NEGATIVE) ? maxVal/PROPORTION : PROPORTION/maxVal;
+        const GLOBAL_X = canvas.width/2 + LOCAL_X*MULTIPLIER;
+        const GLOBAL_Y = canvas.height/2 + LOCAL_Y*MULTIPLIER;
 
         if (firstMove) {
             ctx.moveTo(GLOBAL_X, GLOBAL_Y);
             firstMove = false;
+            firstX = GLOBAL_X;
+            firstY = GLOBAL_Y;
         } else {
             ctx.lineTo(GLOBAL_X, GLOBAL_Y);
         }
@@ -112,7 +121,7 @@ function drawPolygon(ctx, canvas, values, color, maxVal, fill) {
         ];
     }
     
-    ctx.lineTo(canvas.width/2, canvas.height/2 - RADIUS);
+    ctx.lineTo(firstX, firstY);
     ctx.fillStyle = color;
 
     if (fill) {

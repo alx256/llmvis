@@ -1,8 +1,10 @@
 from typing import Optional
 
+import html as htmlmanip
+
 from llmvis.core import js_tools
 from llmvis.visualization import Visualization
-from llmvis.visualization.visualization import LineChart, Point
+from llmvis.visualization.visualization import LineChart, RadarChart, Point
 from llmvis.visualization.linked_files import relative_file_read
 from llmvis.core.js_tools import escape_all, list_as_js
 
@@ -280,3 +282,61 @@ class AlternativeTokens(Visualization):
 
     def get_dependencies(self):
         return ["../js/alternative_tokens.js"]
+
+
+class TokenSpecificRadarChart(RadarChart):
+    """
+    Shows a different radar chart depending on the selected token.
+    """
+
+    def __init__(self, token_values: dict[str, list[list[any]]]):
+        """
+        Create a new `TokenSpecificRadarChart`.
+
+        Args:
+            token_values (dict[str, list[list[any]]]): Dictionary mapping
+                each token to the radar chart data to be shown when this
+                token is clicked.
+        """
+
+        self.__token__ = list(token_values.keys())[0]
+        self.__token_values__ = token_values
+
+        super().__init__(token_values[self.__token__])
+        self.__name__ = "Token Specific Radar Chart"
+        self.__selector_id__ = str(self.get_uuid()) + "_selector"
+
+    def get_html(self):
+        html = "<style>"
+        html += f".{self.__selector_id__}"
+        html += "{"
+        html += "background-color: transparent;"
+        html += "border: none;"
+        html += "font-size: medium;"
+        html += "}"
+        html += "</style>"
+        html += '<div style="display: table-cell; padding: 10px;">'
+        for key in self.__token_values__.keys():
+            html += "<button "
+            html += f'class="llmvis-text {self.__selector_id__}" '
+            html += ">"
+            html += htmlmanip.escape(key)
+            html += "</button>"
+        html += "</div>"
+        html += "<br>"
+
+        return html + super().get_html()
+
+    def get_js(self) -> str:
+        return (
+            self.call_function(
+                "connectButtonsToRadarChart",
+                f'"{self.get_uuid()}"',
+                f'"{self.__selector_id__}"',
+                self.__token_values__,
+            )
+            + super().get_js()
+        )
+
+    def get_dependencies(self):
+        return ["../js/token_specific_radar_chart.js"] + super().get_dependencies()

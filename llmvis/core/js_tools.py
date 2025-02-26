@@ -26,7 +26,7 @@ def list_as_js(list: list[any], do_conversion=False) -> str:
     js = "["
 
     for i, element in enumerate(list):
-        js += element.get_js() if do_conversion else element
+        js += element.get_js() if do_conversion else str(element)
 
         if i < len(list) - 1:
             js += ","
