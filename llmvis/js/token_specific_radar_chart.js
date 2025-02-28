@@ -11,9 +11,17 @@
  */
 function connectButtonsToRadarChart(canvasId, buttonClassName, tokenValues) {
     const BUTTONS = document.getElementsByClassName(buttonClassName);
+    var selected = BUTTONS[0];
+    selected.classList.add("selected");
 
     for (button of BUTTONS) {
         button.onclick = function() {
+            // Update the buttons to select this button instead,
+            // changing the text color.
+            selected.classList.remove("selected");
+            selected = this;
+            selected.classList.add("selected");
+
             // Show the radar chart for this token
             drawRadarChart(canvasId, tokenValues[this.innerHTML]);
         }

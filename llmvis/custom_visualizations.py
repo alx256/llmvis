@@ -313,6 +313,10 @@ class TokenSpecificRadarChart(RadarChart):
         html += "border: none;"
         html += "font-size: medium;"
         html += "}"
+        html += f".{self.__selector_id__}.selected"
+        html += "{"
+        html += "color: rgb(111, 113, 140);"
+        html += "}"
         html += "</style>"
         html += '<div style="display: table-cell; padding: 10px;">'
         for key in self.__token_values__.keys():
