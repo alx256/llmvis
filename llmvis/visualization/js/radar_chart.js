@@ -13,21 +13,26 @@ function drawRadarChart(canvasId, values) {
     const STROKE_COLOR = 'rgb(222, 222, 222)';
 
     var maxVal = undefined;
+    var minVal = undefined;
 
     // Clear canvas in case line charts have been drawn before
     CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
 
     // First pass: find maximum value
     for (value of values) {
-        if (!maxVal || value[1] > maxVal) {
+        if (maxVal == undefined || value[1] > maxVal) {
             maxVal = value[1];
+        }
+
+        if (minVal == undefined || value[1] < minVal) {
+            minVal = value[1];
         }
     }
 
     // Background polygon
-    drawPolygon(CTX, CANVAS, Array(values.length).fill(["", 1]), STROKE_COLOR, 1, false);
+    drawPolygon(CTX, CANVAS, Array(values.length).fill(["", 1]), STROKE_COLOR, 1, 0, false);
     // Data polygon
-    drawPolygon(CTX, CANVAS, values, 'rgb(117, 115, 138)', maxVal, true);
+    drawPolygon(CTX, CANVAS, values, 'rgb(117, 115, 138)', maxVal, minVal, true);
 }
 
 /**
@@ -43,12 +48,11 @@ function drawRadarChart(canvasId, values) {
  * @param {boolean} fill Set to `true` to fill this polygon or
  *      `false` to not fill it.
  */
-function drawPolygon(ctx, canvas, values, color, maxVal, fill) {
+function drawPolygon(ctx, canvas, values, color, maxVal, minVal, fill) {
     const PADDING = 60;
     const RADIUS = canvas.width/2 - PADDING;
     const LABEL_DISTANCE = 8;
     const ROTATE_ANGLE = (2*Math.PI)/values.length;
-    const IS_NEGATIVE = maxVal <= 0;
 
     // Vector for where to draw each point around the circle
     // Start at the "top" of the circle
@@ -70,7 +74,7 @@ function drawPolygon(ctx, canvas, values, color, maxVal, fill) {
         const PROPORTION = value[1];
         const LOCAL_X = v[0];
         const LOCAL_Y = v[1];
-        const MULTIPLIER = (IS_NEGATIVE) ? maxVal/PROPORTION : PROPORTION/maxVal;
+        const MULTIPLIER = (PROPORTION-minVal) / (maxVal-minVal);
         const GLOBAL_X = canvas.width/2 + LOCAL_X*MULTIPLIER;
         const GLOBAL_Y = canvas.height/2 + LOCAL_Y*MULTIPLIER;
 
