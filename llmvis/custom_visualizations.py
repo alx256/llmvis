@@ -304,7 +304,7 @@ class TokenSpecificRadarChart(RadarChart):
 
         super().__init__(token_values[self.__token__])
         self.__name__ = "Token Specific Radar Chart"
-        self.__selector_id__ = str(self.get_uuid()) + "_selector"
+        self.__selector_id__ = "selector_" + str(self.get_uuid())
 
     def get_html(self):
         html = "<style>"
