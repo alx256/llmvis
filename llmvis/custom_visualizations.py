@@ -206,7 +206,6 @@ class Token:
         self.prob = prob
 
         # Process text
-        self.text = escape_all(self.text)
         self.text = self.text.replace("\n", "<newline>")
 
     def get_js(self):
