@@ -102,6 +102,27 @@ WORD_IMPORTANCE_EMBED_SHAPLEY = 1
 K_TEMPERATURE_SAMPLING = 2
 
 
+class ModelResponse:
+    """
+    Object to contain a response that a model can give,
+    standardised between all `Connection`s.
+    """
+
+    def __init__(self, message: str):
+        """
+        Create a new `ModelResponse`.
+
+        Args:
+            message (str): The message that was given
+                by the model.
+        """
+
+        self.message = message
+        self.candidate_token_groups = []
+        self.selected_indices = []
+        self.fallback_tokens = []
+
+
 class Connection(abc.ABC):
     """
     Base class for connections. A 'connection' is a link between the program
@@ -395,9 +416,7 @@ class Connection(abc.ABC):
 
         return Visualizer([table_heatmap, bar_chart, line_chart])
 
-    def sandbox(
-        self, prompt: str, temperature: int = 0.7, raw: bool = False
-    ) -> Visualizer:
+    def sandbox(self, prompt: str, temperature: int = 0.7) -> Visualizer:
         """
         "Sandbox" metric. This can be used to experiment how different prompts and
         parameters affect the output.
@@ -406,23 +425,15 @@ class Connection(abc.ABC):
             prompt (str): The prompt that this sandbox metric should explore.
             temperature (int): The temperature that responses should use.
                 Default is 0.7.
-            raw (bool): Set to `True` to show raw model response. This will
-                not necessarily follow a chat-like conversation and will usually
-                try to generate more tokens after the prompt that has been
-                provided. Also shows raw token text. Setting to `False` will
-                show a chat response to the prompt. Both `True` and `False`
-                are only supported by watsonx.ai connections. Default is
-                `False`.
         """
-
-        candidate_token_groups, selected_indices, fallback_tokens = (
-            self.__get_raw_alternative_tokens__(prompt, temperature)
-            if raw
-            else self.__get_chat_alternative_tokens__(prompt, temperature)
+        model_response = self.__make_request(
+            prompt, temperature, alternative_tokens=True
         )
 
         alternative_tokens = AlternativeTokens(
-            candidate_token_groups, selected_indices, fallback_tokens
+            model_response.candidate_token_groups,
+            model_response.selected_indices,
+            model_response.fallback_tokens,
         )
         alternative_tokens.set_comments(
             self.__get_info__(),
@@ -430,17 +441,17 @@ class Connection(abc.ABC):
         )
 
         candidate_token_dict = {}
-        fallback_tokens_stack = fallback_tokens.copy()
+        fallback_tokens_stack = model_response.fallback_tokens.copy()
 
-        for i, group in enumerate(candidate_token_groups):
+        for i, group in enumerate(model_response.candidate_token_groups):
             tokens = [[t.text, t.prob] for t in group]
             selected_token = None
 
-            if selected_indices[i] > len(group):
+            if model_response.selected_indices[i] > len(group):
                 selected_token = fallback_tokens_stack.pop(0)
                 tokens.append([selected_token.text, selected_token.prob])
             else:
-                selected_token = group[selected_indices[i] - 1]
+                selected_token = group[model_response.selected_indices[i] - 1]
 
             candidate_token_dict[selected_token.text] = tokens
 
@@ -605,7 +616,9 @@ class Connection(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __make_request(self, prompt: str, temperature: int) -> str:
+    def __make_request(
+        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    ) -> ModelResponse:
         """
         Make a request to this connection using a prompt.
 
@@ -614,6 +627,11 @@ class Connection(abc.ABC):
             temperature (int): The temperature that should be used for
                 generation. 0.0 means deterministic behaviour while higher
                 temperatures introduce more nondeterminism.
+            alternative_tokens (bool): Whether or not this request should
+                return alternative tokens for each generated token and each
+                token's associated probability. Note that this only works on
+                supported `Connection`s, trying this with unsupported
+                `Connection`s will raise a `RuntimeError`.
 
         Returns:
             The model's generated response to the prompt
@@ -631,56 +649,6 @@ class Connection(abc.ABC):
 
         Returns:
             A 2D list of floats containing the embeddings for each prompt.
-        """
-
-        pass
-
-    @abc.abstractmethod
-    def __get_chat_alternative_tokens__(
-        self, prompt: str, temperature: int
-    ) -> tuple[list, list, list]:
-        """
-        Get alternative tokens data for a given prompt, using the
-        chat medium.
-
-        Args:
-            prompt (str): The prompt that alternative tokens should
-                be fetched for.
-            temperature (int): The temperature that should be used
-                for the generation process.
-
-        Returns:
-            A tuple of three lists.
-
-            1. Candidate Token Groups - A 2D list where each element
-            is a list of the n most probable tokens at each generated
-            token.
-            2. Selected Indices - A list of integers containing the
-            index where the eventually selected token was found for
-            each group of candidate tokens. Starts at 1.
-            3. Fallback Tokens - Tokens that were not within the n
-            candidate tokens at each group, but were selected.
-        """
-
-        pass
-
-    @abc.abstractmethod
-    def __get_raw_alternative_tokens__(
-        self, prompt: str, temperature: int
-    ) -> tuple[int, int, int]:
-        """
-        Get alternative tokens data for a given prompt, using a raw
-        response. Will not necessarily follow chat format and might
-        use raw token text.
-
-        Args:
-            prompt (str): The prompt that alternative tokens should
-                be fetched for.
-            temperature (int): The temperature that should be used
-                for the generation process.
-
-        Returns:
-            See `__get_chat_alternative_tokens__` for information.
         """
 
         pass
@@ -737,10 +705,19 @@ class OllamaConnection(Connection):
     def __get_info__(self):
         return "Model: " + self._model_name + " (through Ollama)"
 
-    def _Connection__make_request(self, prompt: str, temperature: int) -> str:
-        return ollama.generate(
+    def _Connection__make_request(
+        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    ) -> ModelResponse:
+        if alternative_tokens:
+            raise RuntimeError(
+                "OllamaConnection does not support returning alternative tokens. Try with another connection instead."
+            )
+
+        response = ollama.generate(
             model=self._model_name, prompt=prompt, options={"temperature": temperature}
-        ).response
+        )
+
+        return ModelResponse(message=response)
 
     def _Connection__calculate_embeddings(
         self, prompts: list[str]
@@ -766,16 +743,6 @@ class OllamaConnection(Connection):
             # JSON data.
 
             return None
-
-    def __get_chat_alternative_tokens__(self, prompt: str, temperature: int):
-        raise RuntimeError(
-            "OllamaConnection does not support calculating log probabilities. Try with another connection instead."
-        )
-
-    def __get_raw_alternative_tokens__(self, prompt: str, temperature: int):
-        raise RuntimeError(
-            "OllamaConnection does not support calculating log probabilities. Try with another connection instead."
-        )
 
 
 class WatsonXConnection(Connection):
@@ -853,22 +820,26 @@ class WatsonXConnection(Connection):
     def __get_info__(self):
         return "Model: " + self.__model_name__ + " (through watsonx.ai)"
 
-    def _Connection__make_request(self, prompt: str, temperature: int) -> str:
+    def _Connection__make_request(
+        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    ) -> ModelResponse:
         response = requests.post(
-            self.__get_url__("generation"),
+            self.__get_url__("chat"),
             headers={
                 "Authorization": f"Bearer {self.__access_token__}",
+                "Accept": "application/json",
                 "Content-Type": "application/json",
             },
             json={
+                "messages": [
+                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
+                ],
                 "model_id": self.__model_name__,
-                "input": prompt,
-                "parameters": {
-                    "max_new_tokens": 100,
-                    "time_limit": 1000,
-                    "temperature": temperature,
-                },
                 "project_id": self.__project_id__,
+                "temperature": temperature,
+                "logprobs": alternative_tokens,
+                "top_logprobs": 5 if alternative_tokens else 0,
+                "max_tokens": 128,
             },
         )
 
@@ -877,7 +848,20 @@ class WatsonXConnection(Connection):
                 f"Tried to generate response but got errors: {response.json()['errors']}"
             )
 
-        return " ".join([c["generated_text"] for c in response.json()["results"]])
+        response_json = response.json()
+        choice = response_json["choices"][0]
+        model_response = ModelResponse(message=choice["message"]["content"])
+
+        if alternative_tokens:
+            data = response_json["choices"][0]["logprobs"]["content"]
+            candidate_token_groups, selected_indices, fallback_tokens = (
+                self.__calculate_alternate_tokens__(data)
+            )
+            model_response.candidate_token_groups = candidate_token_groups
+            model_response.selected_indices = selected_indices
+            model_response.fallback_tokens = fallback_tokens
+
+        return model_response
 
     def _Connection__calculate_embeddings(
         self, prompts: list[str]
@@ -903,9 +887,9 @@ class WatsonXConnection(Connection):
 
         return [r["embedding"] for r in response.json()["results"]]
 
-    def __get_chat_alternative_tokens__(
-        self, prompt: str, temperature: int
-    ) -> tuple[list, list, list]:
+    def __mediate__(
+        self, prompt: str, data: list[any], format: dict[any, any], temperature: int
+    ) -> Optional[dict[any, any]]:
         response = requests.post(
             self.__get_url__("chat"),
             headers={
@@ -914,24 +898,32 @@ class WatsonXConnection(Connection):
                 "Content-Type": "application/json",
             },
             json={
-                "messages": [
-                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
-                ],
                 "model_id": self.__model_name__,
                 "project_id": self.__project_id__,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": json.dumps({"input": data})}
+                        ],
+                    },
+                ],
                 "temperature": temperature,
-                "logprobs": True,
-                "top_logprobs": 5,
-                "max_tokens": 128,
             },
         )
 
         if response.status_code != 200:
             raise RuntimeError(
-                f"Tried to calculate log probabilities but got errors: {response.json()['errors']}"
+                f"Tried to mediate but got code {response.status_code} and errors: {response.json()['errors']}"
             )
 
-        data = response.json()["choices"][0]["logprobs"]["content"]
+        try:
+            return json.loads(response.json()["choices"][0]["message"]["content"])
+        except json.JSONDecodeError:
+            return None
+
+    def __calculate_alternate_tokens__(self, data) -> tuple[list, list, list]:
         candidate_token_groups = []
         selected_indices = []
         fallback_tokens = []
@@ -973,97 +965,3 @@ class WatsonXConnection(Connection):
                 fallback_tokens.append(selected)
 
         return candidate_token_groups, selected_indices, fallback_tokens
-
-    def __get_raw_alternative_tokens__(self, prompt, temperature):
-        response = requests.post(
-            self.__get_url__("generation"),
-            headers={
-                "Authorization": f"Bearer {self.__access_token__}",
-                "Accept": "appliction/json",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model_id": self.__model_name__,
-                "project_id": self.__project_id__,
-                "input": prompt,
-                "parameters": {
-                    "temperature": temperature,
-                    "return_options": {
-                        "generated_tokens": True,
-                        "token_logprobs": True,
-                        "token_ranks": True,
-                        "top_n_tokens": 5,
-                    },
-                },
-            },
-        )
-
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"Tried to calculate log probabilities but got errors: {response.json()['errors']}"
-            )
-
-        data = response.json()["results"][0]["generated_tokens"]
-        candidate_token_groups = []
-        selected_indices = []
-        fallback_tokens = []
-
-        for result in data:
-            selected = Token(
-                text=result["text"],
-                prob=result.get("logprob", 0.0),
-            )
-            candidate_token_groups.append([])
-
-            for token in result["top_tokens"]:
-                tok = Token(
-                    text=token["text"],
-                    # logprob can sometimes not be included for some reason,
-                    # so default to 0
-                    prob=token.get("logprob", 0.0),
-                )
-                candidate_token_groups[-1].append(tok)
-
-            selected_index = result["rank"]
-            selected_indices.append(selected_index)
-
-            if selected_index > len(result["top_tokens"]):
-                fallback_tokens.append(selected)
-
-        return candidate_token_groups, selected_indices, fallback_tokens
-
-    def __mediate__(
-        self, prompt: str, data: list[any], format: dict[any, any], temperature: int
-    ) -> Optional[dict[any, any]]:
-        response = requests.post(
-            self.__get_url__("chat"),
-            headers={
-                "Authorization": f"Bearer {self.__access_token__}",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model_id": self.__model_name__,
-                "project_id": self.__project_id__,
-                "messages": [
-                    {"role": "system", "content": prompt},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": json.dumps({"input": data})}
-                        ],
-                    },
-                ],
-                "temperature": temperature,
-            },
-        )
-
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"Tried to mediate but got code {response.status_code} and errors: {response.json()['errors']}"
-            )
-
-        try:
-            return json.loads(response.json()["choices"][0]["message"]["content"])
-        except json.JSONDecodeError:
-            return None
