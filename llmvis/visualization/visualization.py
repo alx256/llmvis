@@ -4,24 +4,8 @@ from numpy.typing import ArrayLike
 from typing import Optional
 import uuid
 
-from llmvis.core.js_tools import list_as_js
+from llmvis.core.js_tools import escape_all, list_as_js
 from llmvis.core.linked_files import relative_file_read
-
-
-def escape_all(string: Optional[str]) -> str:
-    """
-    Given a string, return a new string with necessary special characters
-    escaped. Used for escaping strings so that they can safely be
-    inserted into JavaScript code stored in a string.
-
-    Args:
-        string (str): The string that should necessary special characters
-            escaped.
-
-    Returns:
-        A new string with necessary special characters escaped.
-    """
-    return re.sub(r'([\'\n"\\])', r"\\\1", string)
 
 
 class Unit:
@@ -678,3 +662,39 @@ class LineChart(Visualization):
 
     def get_dependencies(self):
         return ["js/line_chart.js"]
+
+
+class RadarChart(Visualization):
+    """
+    A radar chart visualization for some data. Display a polygon
+    where each point represents some numerical data.
+    """
+
+    def __init__(self, values: list[list[any]]):
+        """
+        Create a new `RadarChart` `Visualization`.
+
+        Args:
+            values (list[list[any]]): The data that this `RadarChart`
+                will show. Each element should be a 2-dimensional list
+                where the first element is the categorical name of the
+                data point and the second element is the numerical
+                value.
+        """
+
+        super().__init__()
+        self.__values__ = values
+        self.__name__ = "Radar Chart"
+
+    def get_html(self) -> str:
+        html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
+        html += "</canvas>"
+        return html
+
+    def get_js(self) -> str:
+        return self.call_function(
+            "drawRadarChart", f'"{self.get_uuid()}"', self.__values__
+        )
+
+    def get_dependencies(self):
+        return ["js/radar_chart.js"]

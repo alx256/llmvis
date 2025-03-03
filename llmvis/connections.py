@@ -24,7 +24,15 @@ from llmvis.visualization.visualization import (
     LineChart,
 )
 from llmvis.core.preprocess import should_include
-from llmvis.custom_visualizations import WordSpecificLineChart, AIClassifier
+from llmvis.custom_visualizations import (
+    AlternativeTokens,
+    TemperatureSpecificRadarChart,
+    Token,
+    TokenSpecificRadarChart,
+    WordSpecificLineChart,
+    AIClassifier,
+    TemperatureSpecificAlternativeTokens,
+)
 
 MEDIATION_PROMPT = """You will be given some JSON data, containing a numerical value followed by a string. You must perform two tasks on the data you are given.
 
@@ -94,6 +102,28 @@ MEDIATION_ATTEMPTS = 5
 WORD_IMPORTANCE_GEN_SHAPLEY = 0
 WORD_IMPORTANCE_EMBED_SHAPLEY = 1
 K_TEMPERATURE_SAMPLING = 2
+
+
+class ModelResponse:
+    """
+    Object to contain a response that a model can give,
+    standardised between all `Connection`s.
+    """
+
+    def __init__(self, message: str):
+        """
+        Create a new `ModelResponse`.
+
+        Args:
+            message (str): The message that was given
+                by the model.
+        """
+
+        self.message = message
+        self.candidate_token_groups = []
+        self.selected_indices = []
+        self.fallback_tokens = []
+        self.alternative_tokens = []
 
 
 class Connection(abc.ABC):
@@ -278,6 +308,7 @@ class Connection(abc.ABC):
         k: int,
         start: float = 0.0,
         end: float = 1.0,
+        alternative_tokens: bool = False,
     ) -> Visualizer:
         """
         Sample `k` temperature values starting with `start` and ending
@@ -293,6 +324,10 @@ class Connection(abc.ABC):
                 is 0.0. Must be less than `end`.
             end (float): The ending temperature value. Default is
                 1.0. Must be greater than `start`.
+            alternative_tokens (bool): Set this to `True` to enable
+                visualizations that use alternative tokens and their
+                log probabilities. Only supported on some connections.
+                Default is `False`.
 
         Returns:
             A `Visualizer` showing a table containing the results of the
@@ -310,8 +345,6 @@ class Connection(abc.ABC):
 
         step = (start + end) / (k - 1)
         t = start
-        # Sample results
-        samples = []
         # Temperature values
         temperatures = []
         # Store the frequency of each word to visualize as a bar chart
@@ -319,19 +352,29 @@ class Connection(abc.ABC):
         # Store the frequencies as temperatures change to visualize as a line chart
         temperature_change_frequencies = {}
 
-        table_contents = []
+        samples = []
+        alternative_tokens_data = {}
+        radar_chart_data = {}
         t_values = []
 
         for _ in range(k):
             t_values.append(t)
-            sample = self.__make_request(prompt=prompt, temperature=t)
+            sample = self.__make_request(
+                prompt=prompt, temperature=t, alternative_tokens=alternative_tokens
+            )
 
-            samples.append(sample)
-
-            table_contents.append([t, sample])
+            samples.append([t, sample.message])
             temperatures.append(t)
 
-            for word in sample.split(" "):
+            if alternative_tokens:
+                alternative_tokens_data[t] = [
+                    sample.candidate_token_groups,
+                    sample.selected_indices,
+                    sample.fallback_tokens,
+                ]
+                radar_chart_data[t] = sample.alternative_tokens
+
+            for word in sample.message.split(" "):
                 # Only keep alpha-numeric (i.e. ignore punctuation) chars
                 # of the string
                 chars = "".join(e.lower() for e in word if e.isalnum())
@@ -357,7 +400,9 @@ class Connection(abc.ABC):
             t += step
 
         table_heatmap = TableHeatmap(
-            contents=table_contents, headers=["Sampled Temperature", "Sample Result"]
+            # TODO: Add original rounding approach back
+            contents=[[("{0:.2f}".format(t)), sample] for t, sample in samples],
+            headers=["Sampled Temperature", "Sample Result"],
         )
         table_heatmap.set_comments(self.__get_info__())
 
@@ -385,11 +430,66 @@ class Connection(abc.ABC):
 
         self.__last_metric_id__ = K_TEMPERATURE_SAMPLING
         self.__last_metric_data__ = {
-            "samples": table_contents,
+            "samples": samples,
             "temperatures": temperatures,
         }
 
-        return Visualizer([table_heatmap, bar_chart, line_chart])
+        visualizations = [table_heatmap, bar_chart, line_chart]
+
+        if alternative_tokens:
+            visualizations.append(
+                TemperatureSpecificAlternativeTokens(
+                    alternative_tokens_data, start, end, step
+                )
+            )
+            visualizations.append(
+                TemperatureSpecificRadarChart(radar_chart_data, start, end, step)
+            )
+
+        return Visualizer(visualizations)
+
+    def sandbox(self, prompt: str, temperature: int = 0.7) -> Visualizer:
+        """
+        "Sandbox" metric. This can be used to experiment how different prompts and
+        parameters affect the output.
+
+        Args:
+            prompt (str): The prompt that this sandbox metric should explore.
+            temperature (int): The temperature that responses should use.
+                Default is 0.7.
+        """
+        model_response = self.__make_request(
+            prompt, temperature, alternative_tokens=True
+        )
+
+        alternative_tokens = AlternativeTokens(
+            model_response.candidate_token_groups,
+            model_response.selected_indices,
+            model_response.fallback_tokens,
+        )
+        alternative_tokens.set_comments(
+            self.__get_info__(),
+            f"Temperature: {temperature}",
+        )
+
+        candidate_token_dict = {}
+        fallback_tokens_stack = model_response.fallback_tokens.copy()
+
+        for i, group in enumerate(model_response.candidate_token_groups):
+            tokens = [[t.text, t.prob] for t in group]
+            selected_token = None
+
+            if model_response.selected_indices[i] > len(group):
+                selected_token = fallback_tokens_stack.pop(0)
+                tokens.append([selected_token.text, selected_token.prob])
+            else:
+                selected_token = group[model_response.selected_indices[i] - 1]
+
+            candidate_token_dict[selected_token.text] = tokens
+
+        radar_chart = TokenSpecificRadarChart(candidate_token_dict)
+
+        return Visualizer([alternative_tokens, radar_chart])
 
     def ai_analytics(self) -> Visualizer:
         """
@@ -548,7 +648,9 @@ class Connection(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __make_request(self, prompt: str, temperature: int) -> str:
+    def __make_request(
+        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    ) -> ModelResponse:
         """
         Make a request to this connection using a prompt.
 
@@ -557,6 +659,11 @@ class Connection(abc.ABC):
             temperature (int): The temperature that should be used for
                 generation. 0.0 means deterministic behaviour while higher
                 temperatures introduce more nondeterminism.
+            alternative_tokens (bool): Whether or not this request should
+                return alternative tokens for each generated token and each
+                token's associated probability. Note that this only works on
+                supported `Connection`s, trying this with unsupported
+                `Connection`s will raise a `RuntimeError`.
 
         Returns:
             The model's generated response to the prompt
@@ -630,10 +737,19 @@ class OllamaConnection(Connection):
     def __get_info__(self):
         return "Model: " + self._model_name + " (through Ollama)"
 
-    def _Connection__make_request(self, prompt: str, temperature: int) -> str:
-        return ollama.generate(
+    def _Connection__make_request(
+        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    ) -> ModelResponse:
+        if alternative_tokens:
+            raise RuntimeError(
+                "OllamaConnection does not support returning alternative tokens. Try with another connection instead."
+            )
+
+        response = ollama.generate(
             model=self._model_name, prompt=prompt, options={"temperature": temperature}
-        ).response
+        )
+
+        return ModelResponse(message=response)
 
     def _Connection__calculate_embeddings(
         self, prompts: list[str]
@@ -668,7 +784,7 @@ class WatsonXConnection(Connection):
     on the API's end.
     """
 
-    def __init__(self, api_key: str, project_id: str, model_name: str):
+    def __init__(self, api_key: str, project_id: str, model_name: str, location: str):
         """
         Create a new `WatsonXConnection`. Requires an IBM key and a project ID for a
         watsonx.ai project.
@@ -681,6 +797,9 @@ class WatsonXConnection(Connection):
                 connect to. See the `API model_id` column on
                 [this](https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-models.html?context=wx#ibm-provided)
                 page for more information.
+            location (str): The location of the service. E.g. `eu-gb` for Great Britain.
+                See [here](https://dataplatform.cloud.ibm.com/docs/content/wsj/getting-started/regional-datactr.html?context=wx)
+                for a complete list.
         """
 
         self.__model_name__ = model_name
@@ -689,6 +808,7 @@ class WatsonXConnection(Connection):
         self.__access_token__ = access_token_details["access_token"]
         self.__expiration__ = access_token_details["expiration"]
         self.__project_id__ = project_id
+        self.__location__ = location
 
         super().__init__()
 
@@ -727,27 +847,31 @@ class WatsonXConnection(Connection):
             A string containing the URL with the provided `page` embedded inside it.
         """
 
-        return f"https://eu-gb.ml.cloud.ibm.com/ml/v1/text/{page}?version=2023-05-29"
+        return f"https://{self.__location__}.ml.cloud.ibm.com/ml/v1/text/{page}?version=2024-03-14"
 
     def __get_info__(self):
         return "Model: " + self.__model_name__ + " (through watsonx.ai)"
 
-    def _Connection__make_request(self, prompt: str, temperature: int) -> str:
+    def _Connection__make_request(
+        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    ) -> ModelResponse:
         response = requests.post(
-            self.__get_url__("generation"),
+            self.__get_url__("chat"),
             headers={
                 "Authorization": f"Bearer {self.__access_token__}",
+                "Accept": "application/json",
                 "Content-Type": "application/json",
             },
             json={
+                "messages": [
+                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
+                ],
                 "model_id": self.__model_name__,
-                "input": prompt,
-                "parameters": {
-                    "max_new_tokens": 100,
-                    "time_limit": 1000,
-                    "temperature": temperature,
-                },
                 "project_id": self.__project_id__,
+                "temperature": temperature,
+                "logprobs": alternative_tokens,
+                "top_logprobs": 5 if alternative_tokens else 0,
+                "max_tokens": 128,
             },
         )
 
@@ -756,7 +880,24 @@ class WatsonXConnection(Connection):
                 f"Tried to generate response but got errors: {response.json()['errors']}"
             )
 
-        return " ".join([c["generated_text"] for c in response.json()["results"]])
+        response_json = response.json()
+        choice = response_json["choices"][0]
+        model_response = ModelResponse(message=choice["message"]["content"])
+
+        if alternative_tokens:
+            data = response_json["choices"][0]["logprobs"]["content"]
+            (
+                alternative_tokens,
+                candidate_token_groups,
+                selected_indices,
+                fallback_tokens,
+            ) = self.__calculate_alternate_tokens__(data)
+            model_response.alternative_tokens = alternative_tokens
+            model_response.candidate_token_groups = candidate_token_groups
+            model_response.selected_indices = selected_indices
+            model_response.fallback_tokens = fallback_tokens
+
+        return model_response
 
     def _Connection__calculate_embeddings(
         self, prompts: list[str]
@@ -817,3 +958,80 @@ class WatsonXConnection(Connection):
             return json.loads(response.json()["choices"][0]["message"]["content"])
         except json.JSONDecodeError:
             return None
+
+    def __calculate_alternate_tokens__(
+        self, data: list[any]
+    ) -> tuple[list, list, list, list]:
+        """
+        Rearrange alternate token data into forms that can be used for different
+        visualizations.
+
+        Args:
+            data (list[any]): The raw data to be rearranged.
+
+        Returns:
+            Four lists.
+
+            - alternative_tokens: A 2D list where each element is a list with the
+            first element being the token text and the second element being another
+            list of n candidate tokens that were also considered in the form of a
+            list where the first element is the token's text and the second is the
+            log probability.
+            - candidate_token_groups: A 2D list where each element are n
+            candidate `Token`s considered for each output token.
+            - selected_indices: A list of which of the candidate tokens was
+            selected, starting at 1.
+            - fallback_tokens: A list of `Token`s representing a stack of
+            tokens that were not within the n candidate tokens.
+        """
+
+        alternative_tokens = []
+        candidate_token_groups = []
+        selected_indices = []
+        fallback_tokens = []
+
+        for result in data:
+            selected = Token(
+                text=result["token"],
+                prob=result.get("logprob", 0.0),
+            )
+            candidate_token_groups.append([])
+            alternative_tokens.append([selected.text, []])
+            selected_index = 1
+
+            for i, token in enumerate(
+                sorted(
+                    result["top_logprobs"],
+                    key=lambda r: r.get("logprob", 0.0),
+                    reverse=True,
+                )
+            ):
+                tok = Token(
+                    text=token["token"],
+                    # logprob can sometimes not be included for some reason,
+                    # so default to 0
+                    prob=token.get("logprob", 0.0),
+                )
+
+                if tok.text == selected.text:
+                    # This token was the selected one
+                    # (add 1 for compatibility with
+                    # other approaches for getting
+                    # the alternative tokens)
+                    selected_index = i + 1
+
+                candidate_token_groups[-1].append(tok)
+                alternative_tokens[-1][1].append([tok.text, tok.prob])
+
+            selected_indices.append(selected_index)
+
+            if selected_index > len(result["top_logprobs"]):
+                fallback_tokens.append(selected)
+                alternative_tokens[-1][1].append([tok.text, tok.prob])
+
+        return (
+            alternative_tokens,
+            candidate_token_groups,
+            selected_indices,
+            fallback_tokens,
+        )
