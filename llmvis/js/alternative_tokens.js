@@ -30,6 +30,9 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
 
     // Redraw the visualization and refit it to the screen.
     const UPDATE = function() {
+        // Clear canvas
+        CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
+
         const DRAW_RESULT = updateAlternativeTokens(CTX,
             candidateTokenGroups, selectedIndices, fallbackTokens);
         const FURTHEST_EXTENT = DRAW_RESULT.furthestExtent;
@@ -45,14 +48,31 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
         }
     };
 
-    window.addEventListener("resize", UPDATE);
-    CANVAS.parentElement.addEventListener("scroll", function() {
+    /*
+    alternativeTokensVisualizationAdded is a custom
+    property that we assign to the window to prevent
+    a new "resize" event being added each time this
+    function is run again (such as redrawing for new
+    data or comparisons).
+
+    Note that setting the onresize event for the window
+    is a bad idea in this case since the environment
+    where these visualizations are being displayed may
+    already have resize events assigned to the window
+    that we do not want to overwrite.
+    */
+    if (!window.alternativeTokensVisualizationAdded) {
+        window.alternativeTokensVisualizationAdded = true;
+        window.addEventListener("resize", UPDATE);
+    }
+
+    CANVAS.parentElement.onscroll = function() {
         if (stoppedScrolling) {
             stoppedScrolling = false;
             // Update to remove the tooltip
             UPDATE();
         }
-    });
+    };
 
     CANVAS.onmousemove = function(event) {
         if (!chunks) {

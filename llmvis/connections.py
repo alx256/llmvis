@@ -26,10 +26,12 @@ from llmvis.visualization.visualization import (
 from llmvis.core.preprocess import should_include
 from llmvis.custom_visualizations import (
     AlternativeTokens,
+    TemperatureSpecificRadarChart,
     Token,
     TokenSpecificRadarChart,
     WordSpecificLineChart,
     AIClassifier,
+    TemperatureSpecificAlternativeTokens,
 )
 
 MEDIATION_PROMPT = """You will be given some JSON data, containing a numerical value followed by a string. You must perform two tasks on the data you are given.
@@ -121,6 +123,7 @@ class ModelResponse:
         self.candidate_token_groups = []
         self.selected_indices = []
         self.fallback_tokens = []
+        self.alternative_tokens = []
 
 
 class Connection(abc.ABC):
@@ -305,6 +308,7 @@ class Connection(abc.ABC):
         k: int,
         start: float = 0.0,
         end: float = 1.0,
+        alternative_tokens: bool = False,
     ) -> Visualizer:
         """
         Sample `k` temperature values starting with `start` and ending
@@ -320,6 +324,10 @@ class Connection(abc.ABC):
                 is 0.0. Must be less than `end`.
             end (float): The ending temperature value. Default is
                 1.0. Must be greater than `start`.
+            alternative_tokens (bool): Set this to `True` to enable
+                visualizations that use alternative tokens and their
+                log probabilities. Only supported on some connections.
+                Default is `False`.
 
         Returns:
             A `Visualizer` showing a table containing the results of the
@@ -345,16 +353,28 @@ class Connection(abc.ABC):
         temperature_change_frequencies = {}
 
         samples = []
+        alternative_tokens_data = {}
+        radar_chart_data = {}
         t_values = []
 
         for _ in range(k):
             t_values.append(t)
-            sample = self.__make_request(prompt=prompt, temperature=t)
+            sample = self.__make_request(
+                prompt=prompt, temperature=t, alternative_tokens=alternative_tokens
+            )
 
-            samples.append([t, sample])
+            samples.append([t, sample.message])
             temperatures.append(t)
 
-            for word in sample.split(" "):
+            if alternative_tokens:
+                alternative_tokens_data[t] = [
+                    sample.candidate_token_groups,
+                    sample.selected_indices,
+                    sample.fallback_tokens,
+                ]
+                radar_chart_data[t] = sample.alternative_tokens
+
+            for word in sample.message.split(" "):
                 # Only keep alpha-numeric (i.e. ignore punctuation) chars
                 # of the string
                 chars = "".join(e.lower() for e in word if e.isalnum())
@@ -414,7 +434,19 @@ class Connection(abc.ABC):
             "temperatures": temperatures,
         }
 
-        return Visualizer([table_heatmap, bar_chart, line_chart])
+        visualizations = [table_heatmap, bar_chart, line_chart]
+
+        if alternative_tokens:
+            visualizations.append(
+                TemperatureSpecificAlternativeTokens(
+                    alternative_tokens_data, start, end, step
+                )
+            )
+            visualizations.append(
+                TemperatureSpecificRadarChart(radar_chart_data, start, end, step)
+            )
+
+        return Visualizer(visualizations)
 
     def sandbox(self, prompt: str, temperature: int = 0.7) -> Visualizer:
         """
@@ -854,9 +886,13 @@ class WatsonXConnection(Connection):
 
         if alternative_tokens:
             data = response_json["choices"][0]["logprobs"]["content"]
-            candidate_token_groups, selected_indices, fallback_tokens = (
-                self.__calculate_alternate_tokens__(data)
-            )
+            (
+                alternative_tokens,
+                candidate_token_groups,
+                selected_indices,
+                fallback_tokens,
+            ) = self.__calculate_alternate_tokens__(data)
+            model_response.alternative_tokens = alternative_tokens
             model_response.candidate_token_groups = candidate_token_groups
             model_response.selected_indices = selected_indices
             model_response.fallback_tokens = fallback_tokens
@@ -923,7 +959,33 @@ class WatsonXConnection(Connection):
         except json.JSONDecodeError:
             return None
 
-    def __calculate_alternate_tokens__(self, data) -> tuple[list, list, list]:
+    def __calculate_alternate_tokens__(
+        self, data: list[any]
+    ) -> tuple[list, list, list, list]:
+        """
+        Rearrange alternate token data into forms that can be used for different
+        visualizations.
+
+        Args:
+            data (list[any]): The raw data to be rearranged.
+
+        Returns:
+            Four lists.
+
+            - alternative_tokens: A 2D list where each element is a list with the
+            first element being the token text and the second element being another
+            list of n candidate tokens that were also considered in the form of a
+            list where the first element is the token's text and the second is the
+            log probability.
+            - candidate_token_groups: A 2D list where each element are n
+            candidate `Token`s considered for each output token.
+            - selected_indices: A list of which of the candidate tokens was
+            selected, starting at 1.
+            - fallback_tokens: A list of `Token`s representing a stack of
+            tokens that were not within the n candidate tokens.
+        """
+
+        alternative_tokens = []
         candidate_token_groups = []
         selected_indices = []
         fallback_tokens = []
@@ -934,6 +996,7 @@ class WatsonXConnection(Connection):
                 prob=result.get("logprob", 0.0),
             )
             candidate_token_groups.append([])
+            alternative_tokens.append([selected.text, []])
             selected_index = 1
 
             for i, token in enumerate(
@@ -958,10 +1021,17 @@ class WatsonXConnection(Connection):
                     selected_index = i + 1
 
                 candidate_token_groups[-1].append(tok)
+                alternative_tokens[-1][1].append([tok.text, tok.prob])
 
             selected_indices.append(selected_index)
 
             if selected_index > len(result["top_logprobs"]):
                 fallback_tokens.append(selected)
+                alternative_tokens[-1][1].append([tok.text, tok.prob])
 
-        return candidate_token_groups, selected_indices, fallback_tokens
+        return (
+            alternative_tokens,
+            candidate_token_groups,
+            selected_indices,
+            fallback_tokens,
+        )

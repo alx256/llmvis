@@ -4,18 +4,31 @@
  * canvas according to some data.
  * @param {string} canvasId The ID of the canvas that will be used
  *      to draw the radar charts.
- * @param {string} buttonClassName The name of the class that all
+ * @param {string} selectorId The name of the class that all
  *      token buttons belong to.
  * @param {Object} tokenValues An object mapping each token to its
  *      corresponding radar chart data.
  */
-function connectButtonsToRadarChart(canvasId, buttonClassName, tokenValues) {
-    const BUTTONS = document.getElementsByClassName(buttonClassName);
-    var selected = BUTTONS[0];
-    selected.classList.add("selected");
+function connectButtonsToRadarChart(canvasId, selectorId, tokenValues) {
+    const SELECTOR = document.getElementById(selectorId);
+    // Clear buttons
+    SELECTOR.innerHTML = '';
 
-    for (button of BUTTONS) {
-        button.onclick = function() {
+    var selected;
+    var hasSelected = false;
+    var index = 0;
+
+    for (value of tokenValues) {
+        const KEY = value[0];
+        const VALUE = value[1];
+        // Add a button for each token
+        const BUTTON = document.createElement("button");
+        BUTTON.classList.add("llmvis-text");
+            BUTTON.classList.add("llmvis-token-button");
+
+        const TEXT = document.createTextNode(KEY);
+        BUTTON.appendChild(TEXT);
+        BUTTON.onclick = function() {
             // Update the buttons to select this button instead,
             // changing the text color.
             selected.classList.remove("selected");
@@ -23,7 +36,18 @@ function connectButtonsToRadarChart(canvasId, buttonClassName, tokenValues) {
             selected.classList.add("selected");
 
             // Show the radar chart for this token
-            drawRadarChart(canvasId, tokenValues[this.innerHTML]);
+            drawRadarChart(canvasId, VALUE);
         }
+
+        SELECTOR.appendChild(BUTTON);
+
+        if (!hasSelected) {
+            selected = BUTTON;
+            selected.classList.add("selected");
+            selected.onclick();
+            hasSelected = true;
+        }
+
+        index += 1;
     }
 }
