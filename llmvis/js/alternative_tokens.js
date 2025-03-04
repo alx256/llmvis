@@ -19,32 +19,41 @@
 function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, fallbackTokens) {
     const CANVAS = document.getElementById(canvasId);
     const CTX = CANVAS.getContext('2d');
-    const RECT = CANVAS.getBoundingClientRect();
     const TOOLTIP_WIDTH = 200;
     const TOOLTIP_HEIGHT = 80;
+    const SCROLL_SCALE = 0.00055;
 
+    var currentScale = 1.0;
+    var offsetScale = 1.0;
     var chunks;
     var chunkWidth;
     var xOffset;
     var stoppedScrolling = false;
 
     // Redraw the visualization and refit it to the screen.
-    const UPDATE = function() {
+    const UPDATE = function(readjust_window = false) {
         // Clear canvas
-        CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
+        // Use offsetScale to make sure entire canvas is cleared
+        // including bits outside CTX's scaled dimensions.
+        CTX.clearRect(0, 0, CANVAS.width/offsetScale, CANVAS.height/offsetScale);
 
-        const DRAW_RESULT = updateAlternativeTokens(CTX,
-            candidateTokenGroups, selectedIndices, fallbackTokens);
-        const FURTHEST_EXTENT = DRAW_RESULT.furthestExtent;
+        const DRAW_RESULT = updateAlternativeTokens(CTX, candidateTokenGroups,
+            selectedIndices, fallbackTokens, currentScale);
+        const FURTHEST_EXTENT = DRAW_RESULT.furthestExtent*offsetScale;
 
         chunks = DRAW_RESULT.chunks;
         chunkWidth = DRAW_RESULT.chunkWidth;
         xOffset = DRAW_RESULT.xOffset;
 
-        if (FURTHEST_EXTENT > window.innerWidth) {
-            CANVAS.width = FURTHEST_EXTENT;
-            updateAlternativeTokens(CTX, candidateTokenGroups, selectedIndices, fallbackTokens);
-            CANVAS.parentElement.style.width = window.innerWidth.toString() + "px";
+        if (readjust_window) {
+            var newWidth = (FURTHEST_EXTENT > window.innerWidth) ? FURTHEST_EXTENT : window.innerWidth;
+
+            if (CANVAS.width != newWidth) {
+                CANVAS.width = newWidth;
+                updateAlternativeTokens(CTX, candidateTokenGroups,
+                    selectedIndices, fallbackTokens, offsetScale);
+                CANVAS.parentElement.style.width = window.innerWidth.toString() + "px";
+            }
         }
     };
 
@@ -83,24 +92,47 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
 
         stoppedScrolling = true;
 
-        const mouseX = event.offsetX - RECT.left;
-        const mouseY = event.clientY - RECT.top;
+        const mouseX = event.offsetX/offsetScale;
+        const mouseY = event.offsetY/offsetScale;
         const CHUNK_LOCATION = Math.floor((mouseX - xOffset) / chunkWidth);
         const CHUNK = chunks.get(CHUNK_LOCATION);
 
         if (CHUNK) {
             for (TOKEN of CHUNK) {
                 if (mouseX >= TOKEN.xStart && mouseX <= TOKEN.xEnd && mouseY >= TOKEN.yStart && mouseY <= TOKEN.yEnd) {
+                    CTX.scale(1/offsetScale, 1/offsetScale);
                     drawTooltip([[{text: `Log Probability: ${TOKEN.prob}`, color: "black"}]],
-                        mouseX, mouseY,
+                        event.offsetX, event.offsetY,
                         TOOLTIP_WIDTH, TOOLTIP_HEIGHT,
                         12, CTX);
+                    CTX.scale(offsetScale, offsetScale);
                 }
             }
         }
     }
 
-    UPDATE();
+    var timer;
+
+    CANVAS.onwheel = function (event) {
+        if (timer) {
+            clearTimeout(timer);
+        }
+
+        // Readjust window when the user has stopped scrolling for
+        // performance reasons.
+        // Figure this out by having a timer do the readjust which is
+        // reset each time an onwheel event is receieved.
+        timer = setTimeout(() => UPDATE(true, /* readjust window */), 150);
+        currentScale = 1.0 - event.deltaY*SCROLL_SCALE;
+        offsetScale *= currentScale;
+        UPDATE();
+        currentScale = 1.0;
+    };
+
+    // Set canvas width to 0 to force a readjust (in the case that
+    // this entire function is called multiple times)
+    CANVAS.width = 0;
+    UPDATE(true /* readjust window */);
 }
 
 /**
@@ -109,12 +141,14 @@ function drawAlternativeTokens(canvasId, candidateTokenGroups, selectedIndices, 
  * @param {Object} ctx The 2D context that should be used for drawing
  *      the visualization.
  * @param {Object} candidateTokenGroups See {@link drawAlternativeTokens}
- * @param {*} selectedIndices See {@link drawAlternativeTokens}
- * @param {*} fallbackTokens See {@link drawAlternativeTokens}
+ * @param {Object} selectedIndices See {@link drawAlternativeTokens}
+ * @param {Object} fallbackTokens See {@link drawAlternativeTokens}
+ * @param {number} zoom The amount that has been zoomed since the last
+ *      update that the visualization needs to be scaled accordingly for.
  * @returns An object with information about the visualization that was just
  * drawn.
  */
-function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens) {
+function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens, zoom) {
     const FALLBACK_STACK = fallbackTokens.slice().reverse(); // Slice to create copy
     const STROKE_COLOR = 'rgb(222, 222, 222)';
     const UNSELECTED_TOKEN_COLOR = 'rgb(125, 125, 122)';
@@ -128,7 +162,8 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     
     var yPosition;
     var xPosition = STARTING_X_POSITION;
-    
+
+    ctx.scale(zoom, zoom);
     ctx.font = `${FONT_SIZE}px DidactGothic`;
     ctx.strokeStyle = STROKE_COLOR;
     ctx.beginPath();
