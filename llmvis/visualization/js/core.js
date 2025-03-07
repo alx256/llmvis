@@ -152,25 +152,36 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
      *      weights.
      * @param {number} minWeight The minimum weight out of all the
      *      weights.
+     * @param {Array} palette An array of 3-element arrays representing
+     *      RGB values that should be interpolated between. Default is
+     *      `pure blue (for lowest values) -> grey (for middle values) ->
+     *      pure red (for highest values)`.
      * @returns The CSS-style `rgb(red, green, blue)` RGB value
      *      that the unit should be based on the provided weight.
      */
 function calculateRgb(weight, maxWeight, minWeight,
-        positiveChannel = 0, negativeChannel = 2) {
-    const NEUTRAL_GREY_VALUE = 69;
-    var other_vals = weight / ((weight < 0.0) ? minWeight : maxWeight);
-    var rgb_value = NEUTRAL_GREY_VALUE + ((255 - NEUTRAL_GREY_VALUE) * other_vals);
-    var rgb = [rgb_value, rgb_value, rgb_value];
-    var channel = (weight < 0.0) ? negativeChannel : positiveChannel;
+        palette = [[0, 0, 255], [69, 69, 69], [255, 0, 0]]) {
+    const NORMALIZED_WEIGHT = (weight - minWeight)/(maxWeight - minWeight);
+    const INDEX = NORMALIZED_WEIGHT*(palette.length-1);
+    
+    var rgb = [0, 0, 0];
 
-    /* Values near 0 should be closer to white while values
-    near the max or min weights should be closer to red
-    or to blue respectively.For RGB values this is done
-    by keeping red / blue as the max(1.0) and moving the
-    other values away from 1.0 accordingly. */
+    if (Number.isInteger(INDEX)) {
+        // INDEX nicely falls on a usable index
+        rgb = palette[INDEX];
+        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+    
+    const INDEX_LOWER = Math.floor(INDEX);
+    const INDEX_UPPER = INDEX_LOWER + 1;
+    const DIFF = INDEX - INDEX_LOWER;
+    const RGB_LOWER = palette[INDEX_LOWER];
+    const RGB_UPPER = palette[INDEX_UPPER];
 
-    rgb[(channel + 1)%3] -= rgb_value*other_vals;
-    rgb[(channel + 2)%3] -= rgb_value*other_vals;
+    // Interpolate between colors
+    rgb[0] = (RGB_UPPER[0] - RGB_LOWER[0])*DIFF + RGB_LOWER[0];
+    rgb[1] = (RGB_UPPER[1] - RGB_LOWER[1])*DIFF + RGB_LOWER[1];
+    rgb[2] = (RGB_UPPER[2] - RGB_LOWER[2])*DIFF + RGB_LOWER[2];
 
-    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
+    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }

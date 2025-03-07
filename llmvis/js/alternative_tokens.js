@@ -27,6 +27,11 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     const SCROLL_SCALE = 0.00055;
     const LEGEND_CANVAS = document.getElementById(legendId);
     const LEGEND_CTX = LEGEND_CANVAS.getContext('2d');
+    const PALETTE = [
+        [0, 202, 0],
+        [253, 244, 0],
+        [253, 24, 0]
+    ];
 
     var currentScale = 1.0;
     var offsetScale = 1.0;
@@ -45,7 +50,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         CTX.clearRect(0, 0, CANVAS.width/offsetScale, CANVAS.height/offsetScale);
 
         const DRAW_RESULT = updateAlternativeTokens(CTX, candidateTokenGroups,
-            selectedIndices, fallbackTokens, currentScale);
+            selectedIndices, fallbackTokens, currentScale, PALETTE);
         const FURTHEST_EXTENT = DRAW_RESULT.furthestExtent*offsetScale;
 
         chunks = DRAW_RESULT.chunks;
@@ -60,7 +65,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
             if (CANVAS.width != newWidth) {
                 CANVAS.width = newWidth;
                 updateAlternativeTokens(CTX, candidateTokenGroups,
-                    selectedIndices, fallbackTokens, offsetScale);
+                    selectedIndices, fallbackTokens, offsetScale, PALETTE);
                 CANVAS.parentElement.style.width = window.innerWidth.toString() + "px";
             }
         }
@@ -149,8 +154,12 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     const LEGEND_PADDING = 40;
     const GRADIENT = LEGEND_CTX.createLinearGradient(LEGEND_PADDING, 0,
         LEGEND_CANVAS.width - LEGEND_PADDING, 0);
-    GRADIENT.addColorStop(0, calculateRgb(0, Math.abs(minProb), Math.abs(maxProb)));
-    GRADIENT.addColorStop(1, calculateRgb(Math.abs(minProb - maxProb), Math.abs(minProb), Math.abs(maxProb)));
+    var colorStopIndex = 0;
+
+    for (color of PALETTE) {
+        GRADIENT.addColorStop(colorStopIndex++/PALETTE.length,
+            `rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+    }
 
     LEGEND_CTX.fillStyle = GRADIENT;
     LEGEND_CTX.fillRect(LEGEND_PADDING, LEGEND_PADDING,
@@ -190,7 +199,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
  * @returns An object with information about the visualization that was just
  * drawn.
  */
-function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens, zoom) {
+function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens, zoom, palette) {
     const FALLBACK_STACK = fallbackTokens.slice().reverse(); // Slice to create copy
     const STROKE_COLOR = 'rgb(222, 222, 222)';
     const UNSELECTED_TOKEN_COLOR = 'rgb(125, 125, 122)';
@@ -283,7 +292,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             const TEXT_WIDTH = MEASUREMENTS.width;
             const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
                 MEASUREMENTS.actualBoundingBoxDescent;
-            const RGB = calculateRgb(Math.abs(minProb - PROB), Math.abs(minProb), Math.abs(maxProb));
+            const RGB = calculateRgb(PROB, minProb, maxProb, palette);
 
             ctx.fillStyle = RGB;
 
@@ -334,7 +343,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             const TEXT_WIDTH = MEASUREMENTS.width;
             const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
                 MEASUREMENTS.actualBoundingBoxDescent;
-            const RGB = calculateRgb(Math.abs(minProb - FALLBACK_TOKEN.prob), Math.abs(minProb), Math.abs(maxProb));
+            const RGB = calculateRgb(FALLBACK_TOKEN.prob, minProb, maxProb, palette);
 
             yPosition += TEXT_HEIGHT + Y_SPACING;
             ctx.fillStyle = RGB;
