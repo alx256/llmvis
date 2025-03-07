@@ -142,3 +142,35 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
         textYPos += fontSize + NEWLINE_SPACING;
     }
 }
+
+/**
+     * Calculate the RGB value that should be used for coloring a
+     * unit based on a provided weight.
+     * @param {number} weight The weight that should be used for
+     *      calculating the RGB value.
+     * @param {number} maxWeight The maximum weight out of all the
+     *      weights.
+     * @param {number} minWeight The minimum weight out of all the
+     *      weights.
+     * @returns The CSS-style `rgb(red, green, blue)` RGB value
+     *      that the unit should be based on the provided weight.
+     */
+function calculateRgb(weight, maxWeight, minWeight,
+        positiveChannel = 0, negativeChannel = 2) {
+    const NEUTRAL_GREY_VALUE = 69;
+    var other_vals = weight / ((weight < 0.0) ? minWeight : maxWeight);
+    var rgb_value = NEUTRAL_GREY_VALUE + ((255 - NEUTRAL_GREY_VALUE) * other_vals);
+    var rgb = [rgb_value, rgb_value, rgb_value];
+    var channel = (weight < 0.0) ? negativeChannel : positiveChannel;
+
+    /* Values near 0 should be closer to white while values
+    near the max or min weights should be closer to red
+    or to blue respectively.For RGB values this is done
+    by keeping red / blue as the max(1.0) and moving the
+    other values away from 1.0 accordingly. */
+
+    rgb[(channel + 1)%3] -= rgb_value*other_vals;
+    rgb[(channel + 2)%3] -= rgb_value*other_vals;
+
+    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
+}
