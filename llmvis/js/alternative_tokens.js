@@ -286,7 +286,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             const TEXT_WIDTH = MEASUREMENTS.width;
             const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
                 MEASUREMENTS.actualBoundingBoxDescent;
-            const RGB = calculateRgb(PROB, minProb, maxProb);
+            const RGB = calculateRgb(PROB, maxProb, minProb);
 
             ctx.fillStyle = RGB;
 
@@ -337,7 +337,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
             const TEXT_WIDTH = MEASUREMENTS.width;
             const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
                 MEASUREMENTS.actualBoundingBoxDescent;
-            const RGB = calculateRgb(FALLBACK_TOKEN.prob, minProb, maxProb);
+            const RGB = calculateRgb(FALLBACK_TOKEN.prob, maxProb, minProb);
 
             yPosition += TEXT_HEIGHT + Y_SPACING;
             ctx.fillStyle = RGB;

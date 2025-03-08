@@ -163,13 +163,22 @@ function calculateRgb(weight, maxWeight, minWeight,
         palette = [[48, 147, 38], [180, 157, 46], [176, 46, 52]]) {
     const NORMALIZED_WEIGHT = (weight - minWeight)/(maxWeight - minWeight);
     const INDEX = NORMALIZED_WEIGHT*(palette.length-1);
-    
+
     var rgb = [0, 0, 0];
 
     if (Number.isInteger(INDEX)) {
         // INDEX nicely falls on a usable index
         rgb = palette[INDEX];
-        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        return arrayToRgb(rgb);
+    }
+
+    if (INDEX > palette.length - 1) {
+        // INDEX is above our maximum value.
+        // Can occur with slight precision inaccuracies, but just to be safe
+        // we alert this.
+        console.warn(`Index ${INDEX} fell above maximum value ${palette.length - 1} when calculating RGB values.`);
+        rgb = palette[palette.length - 1];
+        return arrayToRgb(rgb);
     }
     
     const INDEX_LOWER = Math.floor(INDEX);
@@ -183,5 +192,9 @@ function calculateRgb(weight, maxWeight, minWeight,
     rgb[1] = (RGB_UPPER[1] - RGB_LOWER[1])*DIFF + RGB_LOWER[1];
     rgb[2] = (RGB_UPPER[2] - RGB_LOWER[2])*DIFF + RGB_LOWER[2];
 
-    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    return arrayToRgb(rgb);
+}
+
+function arrayToRgb(arr) {
+    return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
 }
