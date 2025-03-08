@@ -1,6 +1,7 @@
 from __future__ import annotations
 import abc
 import asyncio
+import math
 import ollama
 import numpy as np
 from typing_extensions import Optional
@@ -124,6 +125,8 @@ class ModelResponse:
         self.selected_indices = []
         self.fallback_tokens = []
         self.alternative_tokens = []
+        self.prob_sum = 0
+        self.generated_tokens = 0
 
 
 class Connection(abc.ABC):
@@ -162,7 +165,10 @@ class Connection(abc.ABC):
         # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
 
     def word_importance_gen_shapley(
-        self, prompt: str, sampling_ratio: float = 0.5
+        self,
+        prompt: str,
+        sampling_ratio: float = 0.5,
+        use_inverse_perplexity: bool = False,
     ) -> Visualizer:
         """
         Calculate the importance of each word in a given prompt
@@ -174,6 +180,9 @@ class Connection(abc.ABC):
                 word importance calculated
             sampling_ratio (float): How many random samples should
                 be carried out (0.0 for none)
+            use_inverse_perplexity (bool): Set this to `True` to
+                enable inverse perplexity calculations for
+                hallucination detection.
 
         Returns:
             A `Visualizer` showing a table heatmap, a text heatmap and a tag cloud
@@ -181,7 +190,12 @@ class Connection(abc.ABC):
         """
 
         # Start responses
-        responses = [self.__make_request(prompt, temperature=0.0)]
+        responses = [
+            self.__make_request(
+                prompt, temperature=0.0, alternative_tokens=use_inverse_perplexity
+            )
+        ]
+        outputs = []
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
         separated_prompt = prompt.split(" ")
         combinator = Combinator(separated_prompt)
@@ -189,7 +203,12 @@ class Connection(abc.ABC):
 
         for i, combination in enumerate(combinator.get_combinations()):
             request = self.__flatten_words(combination, delimiter=" ")
-            responses.append(self.__make_request(request, temperature=0.0))
+            response = self.__make_request(
+                request, temperature=0.0, alternative_tokens=use_inverse_perplexity
+            )
+
+            responses.append(response)
+            outputs.append(response.message)
 
             combination_local = combination.copy()
             combination_local.insert(i, "_" * len(separated_prompt[i]))
@@ -199,7 +218,7 @@ class Connection(abc.ABC):
 
         # Calculate TF-IDF representation of each response
         vectorizer = TfidfVectorizer()
-        vectors = vectorizer.fit_transform(responses).toarray()
+        vectors = vectorizer.fit_transform(outputs).toarray()
         # Use TF-IDF representation to calculate similarity between each
         # response and the full response
         similarities = cosine_similarity(
@@ -208,26 +227,52 @@ class Connection(abc.ABC):
 
         # Start the visualization
         shapley_vals = combinator.get_shapley_values(similarities)
-        units = [
-            Unit(
-                separated_prompt[i],
-                shapley_vals[i],
-                [
-                    ("Shapley Value", shapley_vals[i]),
-                    ("Generated Prompt", responses[i + 1]),
-                ],
+        importance_units = []
+        inverse_perplexity_units = []
+        table_contents = []
+
+        for i in range(len(separated_prompt)):
+            text = separated_prompt[i]
+            shapley_value = shapley_vals[i]
+            response = responses[i + 1]
+
+            # Each unit's weight represents the shapley
+            # (importance) value of that unit.
+            importance_units.append(
+                Unit(
+                    text,
+                    shapley_value,
+                    [
+                        ("Shapley Value", shapley_value),
+                        ("Generated Prompt", response.message),
+                    ],
+                )
             )
-            for i in range(len(separated_prompt))
-        ]
+
+            if use_inverse_perplexity:
+                inverse_perplexity = self.__inverse_perplexity__(
+                    response.generated_tokens, response.prob_sum
+                )
+
+                # Each unit's weight represents the inverse perplexity
+                # (hallucination likelihood) of that unit.
+                inverse_perplexity_units.append(
+                    Unit(
+                        text,
+                        inverse_perplexity,
+                        [("Inverse Perplexity", inverse_perplexity)],
+                    )
+                )
+
         table_contents = [
             [
                 requests[i],
-                responses[i],
+                outputs[i],
                 separated_prompt[i - 1] if i > 0 else "N/A",
                 str(shapley_vals[i - 1]) if i > 0 else "N/A",
                 str(similarities[i - 1]) if i > 0 else "N/A",
             ]
-            for i in range(len(responses))
+            for i in range(len(outputs))
         ]
 
         table_heatmap = TableHeatmap(
@@ -242,12 +287,20 @@ class Connection(abc.ABC):
             weights=[0.0] + shapley_vals,
         )
         table_heatmap.set_comments(self.__get_info__())
-        text_heatmap = TextHeatmap(units)
+        text_heatmap = TextHeatmap(importance_units)
         text_heatmap.set_comments(self.__get_info__())
-        tag_cloud = TagCloud(units)
+        tag_cloud = TagCloud(importance_units)
         tag_cloud.set_comments(self.__get_info__())
 
-        return Visualizer([table_heatmap, text_heatmap, tag_cloud])
+        visualizations = [table_heatmap, text_heatmap, tag_cloud]
+
+        if inverse_perplexity:
+            inverse_perplexity_heatmap = TextHeatmap(inverse_perplexity_units)
+            inverse_perplexity_heatmap.set_name("Inverse Perplexity Text Heatmap")
+            inverse_perplexity_heatmap.set_comments(self.__get_info__())
+            visualizations.append(inverse_perplexity_heatmap)
+
+        return Visualizer(visualizations)
 
     def word_importance_embed_shapley(self, prompt: str) -> Visualizer:
         """
@@ -619,6 +672,21 @@ class Connection(abc.ABC):
 
         return words_str
 
+    def __inverse_perplexity__(self, N: int, prob_sum: float) -> float:
+        """
+        Calculate the *inverse perplexity* of a model output, to determine
+        the likelihood of hallucinations in the response.
+
+        Args:
+            N (int): The number of output tokens in the output's response.
+            prob_sum (float): The sum of all log probabilities in the output.
+
+        Returns:
+            A real-valued number representing the inverse perplexity of the
+            response.
+        """
+        return math.exp((1 / N) * prob_sum)
+
     @abc.abstractmethod
     def __get_info__(self):
         """
@@ -867,20 +935,14 @@ class WatsonXConnection(Connection):
 
         response_json = response.json()
         choice = response_json["choices"][0]
-        model_response = ModelResponse(message=choice["message"]["content"])
+        model_response = ModelResponse("")
 
         if alternative_tokens:
             data = response_json["choices"][0]["logprobs"]["content"]
-            (
-                alternative_tokens,
-                candidate_token_groups,
-                selected_indices,
-                fallback_tokens,
-            ) = self.__calculate_alternate_tokens__(data)
-            model_response.alternative_tokens = alternative_tokens
-            model_response.candidate_token_groups = candidate_token_groups
-            model_response.selected_indices = selected_indices
-            model_response.fallback_tokens = fallback_tokens
+            model_response = self.__calculate_alternate_tokens__(data)
+
+        model_response.message = choice["message"]["content"]
+        model_response.generated_tokens = response_json["usage"]["completion_tokens"]
 
         return model_response
 
@@ -944,9 +1006,7 @@ class WatsonXConnection(Connection):
         except json.JSONDecodeError:
             return None
 
-    def __calculate_alternate_tokens__(
-        self, data: list[any]
-    ) -> tuple[list, list, list, list]:
+    def __calculate_alternate_tokens__(self, data: list[any]) -> ModelResponse:
         """
         Rearrange alternate token data into forms that can be used for different
         visualizations.
@@ -955,34 +1015,21 @@ class WatsonXConnection(Connection):
             data (list[any]): The raw data to be rearranged.
 
         Returns:
-            Four lists.
-
-            - alternative_tokens: A 2D list where each element is a list with the
-            first element being the token text and the second element being another
-            list of n candidate tokens that were also considered in the form of a
-            list where the first element is the token's text and the second is the
-            log probability.
-            - candidate_token_groups: A 2D list where each element are n
-            candidate `Token`s considered for each output token.
-            - selected_indices: A list of which of the candidate tokens was
-            selected, starting at 1.
-            - fallback_tokens: A list of `Token`s representing a stack of
-            tokens that were not within the n candidate tokens.
+            A `ModelResponse` where all properties but the `message` property are
+            filled based on the alternative token data.
         """
 
-        alternative_tokens = []
-        candidate_token_groups = []
-        selected_indices = []
-        fallback_tokens = []
+        model_response = ModelResponse("")
 
         for result in data:
             selected = Token(
                 text=result["token"],
                 prob=result.get("logprob", 0.0),
             )
-            candidate_token_groups.append([])
-            alternative_tokens.append([selected.text, []])
+            model_response.candidate_token_groups.append([])
+            model_response.alternative_tokens.append([selected.text, []])
             selected_index = 1
+            model_response.prob_sum += selected.prob
 
             for i, token in enumerate(
                 sorted(
@@ -1005,18 +1052,13 @@ class WatsonXConnection(Connection):
                     # the alternative tokens)
                     selected_index = i + 1
 
-                candidate_token_groups[-1].append(tok)
-                alternative_tokens[-1][1].append([tok.text, tok.prob])
+                model_response.candidate_token_groups[-1].append(tok)
+                model_response.alternative_tokens[-1][1].append([tok.text, tok.prob])
 
-            selected_indices.append(selected_index)
+            model_response.selected_indices.append(selected_index)
 
             if selected_index > len(result["top_logprobs"]):
-                fallback_tokens.append(selected)
-                alternative_tokens[-1][1].append([tok.text, tok.prob])
+                model_response.fallback_tokens.append(selected)
+                model_response.alternative_tokens[-1][1].append([tok.text, tok.prob])
 
-        return (
-            alternative_tokens,
-            candidate_token_groups,
-            selected_indices,
-            fallback_tokens,
-        )
+        return model_response

@@ -254,7 +254,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         // Beginning of the gradient - blue value
         GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight));
         // Middle of the gradient - grey value
-        GRADIENT.addColorStop(0.5, calculateRgb(0.0, maxWeight, minWeight));
+        GRADIENT.addColorStop(0.5, calculateRgb((minWeight+maxWeight)/2, maxWeight, minWeight));
         // End of the gradient - red value
         GRADIENT.addColorStop(1, calculateRgb(maxWeight, maxWeight, minWeight));
 

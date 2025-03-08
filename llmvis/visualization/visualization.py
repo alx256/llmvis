@@ -303,19 +303,8 @@ class TextHeatmap(Visualization):
             if min_weight == None or min_weight > unit.weight:
                 min_weight = unit.weight
 
-        # We want the scaling to be the same for positive and
-        # negative values. This is because if the highest
-        # value is 10.0 and the lowest is -0.2 then values
-        # of 10.0 and -0.2 would be bright red and bright
-        # blue respectively. This gives the indication to the
-        # user that the second value is essentially the negative
-        # of the first number which is inaccurate. Thus, calculate
-        # the absolute min and max values and find which is higher
-        # and use this and the negative of this as the max and
-        # min values.
-        largest_abs = max(abs(max_weight), abs(min_weight))
-        self.__max_weight = largest_abs
-        self.__min_weight = -largest_abs
+        self.__max_weight = max_weight
+        self.__min_weight = min_weight
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
