@@ -254,7 +254,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         // Beginning of the gradient - blue value
         GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight));
         // Middle of the gradient - grey value
-        GRADIENT.addColorStop(0.5, calculateRgb(0.0, maxWeight, minWeight));
+        GRADIENT.addColorStop(0.5, calculateRgb((minWeight+maxWeight)/2, maxWeight, minWeight));
         // End of the gradient - red value
         GRADIENT.addColorStop(1, calculateRgb(maxWeight, maxWeight, minWeight));
 
@@ -271,41 +271,5 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         ctx.fillText(minWeight.toString(), spacing, Y_POS + KEY_GRADIENT_HEIGHT + spacing);
         ctx.fillText(maxWeight.toString(), canvas.width - spacing - measurements.width,
             Y_POS + KEY_GRADIENT_HEIGHT + spacing);
-    }
-
-    /**
-     * Calculate the RGB value that should be used for coloring a
-     * unit based on a provided weight.
-     * @param {number} weight The weight that should be used for
-     *      calculating the RGB value.
-     * @param {number} maxWeight The maximum weight out of all the
-     *      weights.
-     * @param {number} minWeight The minimum weight out of all the
-     *      weights.
-     * @returns The CSS-style `rgb(red, green, blue)` RGB value
-     *      that the unit should be based on the provided weight.
-     */
-    function calculateRgb(weight, maxWeight, minWeight) {
-        const NEUTRAL_GREY_VALUE = 69;
-        var rgb = [0.0, 0.0, 0.0]
-
-        /* Values near 0 should be closer to white while values
-        near the max or min weights should be closer to red
-        or to blue respectively.For RGB values this is done
-        by keeping red / blue as the max(1.0) and moving the
-        other values away from 1.0 accordingly. */
-        if (weight < 0.0) {
-            // Move from white to blue
-            var other_vals = weight / minWeight
-            var rgb_value = NEUTRAL_GREY_VALUE + ((255 - NEUTRAL_GREY_VALUE) * other_vals)
-            rgb = [rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals), rgb_value]
-        } else {
-            // Move from white to red
-            var other_vals = weight / maxWeight
-            var rgb_value = NEUTRAL_GREY_VALUE + ((255 - NEUTRAL_GREY_VALUE) * other_vals)
-            rgb = [rgb_value, rgb_value - (rgb_value * other_vals), rgb_value - (rgb_value * other_vals)]
-        }
-
-        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
     }
 }

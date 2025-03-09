@@ -142,3 +142,59 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
         textYPos += fontSize + NEWLINE_SPACING;
     }
 }
+
+/**
+     * Calculate the RGB value that should be used for coloring a
+     * unit based on a provided weight.
+     * @param {number} weight The weight that should be used for
+     *      calculating the RGB value.
+     * @param {number} maxWeight The maximum weight out of all the
+     *      weights.
+     * @param {number} minWeight The minimum weight out of all the
+     *      weights.
+     * @param {Array} palette An array of 3-element arrays representing
+     *      RGB values that should be interpolated between. Default is
+     *      `pure blue (for lowest values) -> grey (for middle values) ->
+     *      pure red (for highest values)`.
+     * @returns The CSS-style `rgb(red, green, blue)` RGB value
+     *      that the unit should be based on the provided weight.
+     */
+function calculateRgb(weight, maxWeight, minWeight,
+        palette = [[43, 58, 122], [69, 69, 69], [176, 46, 52]]) {
+    const NORMALIZED_WEIGHT = (weight - minWeight)/(maxWeight - minWeight);
+    const INDEX = NORMALIZED_WEIGHT*(palette.length-1);
+
+    var rgb = [0, 0, 0];
+
+    if (Number.isInteger(INDEX)) {
+        // INDEX nicely falls on a usable index
+        rgb = palette[INDEX];
+        return arrayToRgb(rgb);
+    }
+
+    if (INDEX > palette.length - 1) {
+        // INDEX is above our maximum value.
+        // Can occur with slight precision inaccuracies, but just to be safe
+        // we alert this.
+        console.warn(`Index ${INDEX} fell above maximum value ${palette.length - 1} when calculating RGB values.`);
+        rgb = palette[palette.length - 1];
+        return arrayToRgb(rgb);
+    }
+    
+    const INDEX_LOWER = Math.floor(INDEX);
+    const INDEX_UPPER = INDEX_LOWER + 1;
+    const DIFF = INDEX - INDEX_LOWER;
+    const RGB_LOWER = palette[INDEX_LOWER];
+    const RGB_UPPER = palette[INDEX_UPPER];
+
+    // Interpolate between colors
+    rgb[0] = (RGB_UPPER[0] - RGB_LOWER[0])*DIFF + RGB_LOWER[0];
+    rgb[1] = (RGB_UPPER[1] - RGB_LOWER[1])*DIFF + RGB_LOWER[1];
+    rgb[2] = (RGB_UPPER[2] - RGB_LOWER[2])*DIFF + RGB_LOWER[2];
+
+    return arrayToRgb(rgb);
+}
+
+function arrayToRgb(arr) {
+    return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
+}

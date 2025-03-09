@@ -260,18 +260,22 @@ class AlternativeTokens(Visualization):
         self.__selected_indices__ = selected_indices
         self.__fallback_tokens__ = fallback_tokens
         self.__name__ = "Alternative Tokens"
+        self.__legend_id__ = "legend_" + str(self.get_uuid())
 
     def get_html(self) -> str:
         html = '<div style="overflow:auto;">'
         html += f'<canvas id="{self.get_uuid()}" width="1280" height="500">'
         html += "</canvas>"
         html += "</div>"
+        html += f'<canvas id="{self.__legend_id__}" width="500", height="110'
+        html += "</canvas>"
         return html
 
     def get_js(self) -> str:
         return self.call_function(
             "drawAlternativeTokens",
             f'"{self.get_uuid()}"',
+            f'"{self.__legend_id__}"',
             js_tools.list_as_js(
                 [
                     js_tools.list_as_js(group, do_conversion=True)
@@ -554,7 +558,7 @@ class TemperatureSpecificAlternativeTokens(TemperatureSpecificVisualization):
             min_value,
             max_value,
             step,
-            js_func=f'(val) => drawAlternativeTokens("{canvas_id}", val[0], val[1], val[2])',
+            js_func=f'(val) => drawAlternativeTokens("{canvas_id}", "{self.__vis__.__legend_id__}", val[0], val[1], val[2])',
         )
 
         self.__name__ = "Temperature Specific Alternative Tokens"
