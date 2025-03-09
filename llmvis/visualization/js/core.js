@@ -160,7 +160,7 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
      *      that the unit should be based on the provided weight.
      */
 function calculateRgb(weight, maxWeight, minWeight,
-        palette = [[48, 147, 38], [180, 157, 46], [176, 46, 52]]) {
+        palette = [[43, 58, 122], [69, 69, 69], [176, 46, 52]]) {
     const NORMALIZED_WEIGHT = (weight - minWeight)/(maxWeight - minWeight);
     const INDEX = NORMALIZED_WEIGHT*(palette.length-1);
 
