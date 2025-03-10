@@ -442,7 +442,7 @@ class TableHeatmap(Visualization):
         rgb = [0.0, 0.0, 0.0]
 
         if weight < 0.0:
-            other_vals = weight / self.__min_weight
+            other_vals = weight / self.__min_weight if self.__min_weight != 0 else 0
             rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
             rgb = [
                 rgb_value - (rgb_value * other_vals),
@@ -450,7 +450,7 @@ class TableHeatmap(Visualization):
                 rgb_value,
             ]
         else:
-            other_vals = weight / self.__max_weight
+            other_vals = weight / self.__max_weight if self.__max_weight != 0 else 0
             rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
             rgb = [
                 rgb_value,

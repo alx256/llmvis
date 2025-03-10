@@ -86,7 +86,8 @@ class Combinator:
         # Normalize values
         m = max(shapley_values)
 
-        for i in range(len(shapley_values)):
-            shapley_values[i] = shapley_values[i] / m
+        if m != 0:
+            for i in range(len(shapley_values)):
+                shapley_values[i] /= m
 
         return shapley_values

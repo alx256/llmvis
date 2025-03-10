@@ -202,7 +202,7 @@ class Connection(abc.ABC):
                 alternative_tokens=use_inverse_perplexity,
             )
         ]
-        outputs = []
+        outputs = [responses[0].message]
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
         separated_prompt = prompt.split(" ")
         combinator = Combinator(separated_prompt)

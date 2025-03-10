@@ -162,14 +162,13 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
 function calculateRgb(weight, maxWeight, minWeight,
         palette = [[43, 58, 122], [69, 69, 69], [176, 46, 52]]) {
     const NORMALIZED_WEIGHT = (weight - minWeight)/(maxWeight - minWeight);
-    const INDEX = NORMALIZED_WEIGHT*(palette.length-1);
-
-    var rgb = [0, 0, 0];
+    const INDEX = (maxWeight != minWeight) ?
+        NORMALIZED_WEIGHT*(palette.length-1) :
+        (palette.length-1)/2;
 
     if (Number.isInteger(INDEX)) {
         // INDEX nicely falls on a usable index
-        rgb = palette[INDEX];
-        return arrayToRgb(rgb);
+        return arrayToRgb(palette[INDEX]);
     }
 
     if (INDEX > palette.length - 1) {
@@ -177,10 +176,11 @@ function calculateRgb(weight, maxWeight, minWeight,
         // Can occur with slight precision inaccuracies, but just to be safe
         // we alert this.
         console.warn(`Index ${INDEX} fell above maximum value ${palette.length - 1} when calculating RGB values.`);
-        rgb = palette[palette.length - 1];
-        return arrayToRgb(rgb);
+        return arrayToRgb(palette[palette.length - 1]);
     }
-    
+
+    var rgb = [0, 0, 0];
+
     const INDEX_LOWER = Math.floor(INDEX);
     const INDEX_UPPER = INDEX_LOWER + 1;
     const DIFF = INDEX - INDEX_LOWER;
