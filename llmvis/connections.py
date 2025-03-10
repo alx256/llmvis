@@ -167,6 +167,7 @@ class Connection(abc.ABC):
     def word_importance_gen_shapley(
         self,
         prompt: str,
+        system_prompt: Optional[str] = None,
         sampling_ratio: float = 0.5,
         use_inverse_perplexity: bool = False,
     ) -> Visualizer:
@@ -178,6 +179,9 @@ class Connection(abc.ABC):
         Args:
             prompt (str): The prompt that should have its
                 word importance calculated
+            system_prompt (Optional[str]): The system prompt that
+                should be used in generating responses. To not use
+                a system prompt use `None`. Default is `None`.
             sampling_ratio (float): How many random samples should
                 be carried out (0.0 for none)
             use_inverse_perplexity (bool): Set this to `True` to
@@ -191,8 +195,11 @@ class Connection(abc.ABC):
 
         # Start responses
         responses = [
-            self.__make_request(
-                prompt, temperature=0.0, alternative_tokens=use_inverse_perplexity
+            self.__make_request__(
+                prompt,
+                system_prompt,
+                temperature=0.0,
+                alternative_tokens=use_inverse_perplexity,
             )
         ]
         outputs = []
@@ -203,8 +210,11 @@ class Connection(abc.ABC):
 
         for i, combination in enumerate(combinator.get_combinations()):
             request = self.__flatten_words(combination, delimiter=" ")
-            response = self.__make_request(
-                request, temperature=0.0, alternative_tokens=use_inverse_perplexity
+            response = self.__make_request__(
+                request,
+                system_prompt,
+                temperature=0.0,
+                alternative_tokens=use_inverse_perplexity,
             )
 
             responses.append(response)
@@ -294,7 +304,7 @@ class Connection(abc.ABC):
 
         visualizations = [table_heatmap, text_heatmap, tag_cloud]
 
-        if inverse_perplexity:
+        if use_inverse_perplexity:
             inverse_perplexity_heatmap = TextHeatmap(inverse_perplexity_units)
             inverse_perplexity_heatmap.set_name("Inverse Perplexity Text Heatmap")
             inverse_perplexity_heatmap.set_comments(self.__get_info__())
@@ -326,7 +336,7 @@ class Connection(abc.ABC):
             for combination in combinator.get_combinations()
         ]
 
-        embeddings = np.array(self.__calculate_embeddings(requests))
+        embeddings = np.array(self.__calculate_embeddings__(requests))
         similarities = cosine_similarity(
             embeddings[0].reshape(1, -1), embeddings[1:]
         ).flatten()
@@ -359,6 +369,7 @@ class Connection(abc.ABC):
         self,
         prompt: str,
         k: int,
+        system_prompt: Optional[str] = None,
         start: float = 0.0,
         end: float = 1.0,
         alternative_tokens: bool = False,
@@ -373,6 +384,9 @@ class Connection(abc.ABC):
                 different temperature values.
             k (int): The number of samples that should be used. Must
                 be greater than 2.
+            system_prompt (Optional[str]): The system prompt that
+                should be used for generations. Can be `None` to
+                not use any system prompt. Default is `None`.
             start (float): The starting temperature value. Default
                 is 0.0. Must be less than `end`.
             end (float): The ending temperature value. Default is
@@ -412,8 +426,11 @@ class Connection(abc.ABC):
 
         for _ in range(k):
             t_values.append(t)
-            sample = self.__make_request(
-                prompt=prompt, temperature=t, alternative_tokens=alternative_tokens
+            sample = self.__make_request__(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=t,
+                alternative_tokens=alternative_tokens,
             )
 
             samples.append([t, sample.message])
@@ -501,18 +518,22 @@ class Connection(abc.ABC):
 
         return Visualizer(visualizations)
 
-    def sandbox(self, prompt: str, temperature: int = 0.7) -> Visualizer:
+    def sandbox(
+        self, prompt: str, system_prompt: Optional[str] = None, temperature: int = 0.7
+    ) -> Visualizer:
         """
         "Sandbox" metric. This can be used to experiment how different prompts and
         parameters affect the output.
 
         Args:
             prompt (str): The prompt that this sandbox metric should explore.
+            system_prompt (Optional[str]): The system prompt that should be
+                used for generations in this sandbox metric.
             temperature (int): The temperature that responses should use.
                 Default is 0.7.
         """
-        model_response = self.__make_request(
-            prompt, temperature, alternative_tokens=True
+        model_response = self.__make_request__(
+            prompt, system_prompt, temperature, alternative_tokens=True
         )
 
         alternative_tokens = AlternativeTokens(
@@ -701,14 +722,21 @@ class Connection(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __make_request(
-        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    def __make_request__(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        temperature: int,
+        alternative_tokens: bool = False,
     ) -> ModelResponse:
         """
         Make a request to this connection using a prompt.
 
         Args:
             prompt (str): The prompt to be given to the connected model
+            system_prompt (Optional[str]): The system prompt that should
+                be used for this request. Can be `None` to not use any
+                system prompt. Default is `None`.
             temperature (int): The temperature that should be used for
                 generation. 0.0 means deterministic behaviour while higher
                 temperatures introduce more nondeterminism.
@@ -724,7 +752,7 @@ class Connection(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __calculate_embeddings(self, prompts: list[str]) -> list[list[float]]:
+    def __calculate_embeddings__(self, prompts: list[str]) -> list[list[float]]:
         """
         Calculate the embeddings for a given list of prompts.
 
@@ -790,23 +818,35 @@ class OllamaConnection(Connection):
     def __get_info__(self):
         return "Model: " + self._model_name + " (through Ollama)"
 
-    def _Connection__make_request(
-        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    def __make_request__(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        temperature: int,
+        alternative_tokens: bool = False,
     ) -> ModelResponse:
         if alternative_tokens:
             raise RuntimeError(
                 "OllamaConnection does not support returning alternative tokens. Try with another connection instead."
             )
 
+        # Additional parameters that may or may not be included depending on
+        # what the user has provided.
+        additional_params = {}
+
+        if system_prompt is not None:
+            additional_params["system"] = system_prompt
+
         response = ollama.generate(
-            model=self._model_name, prompt=prompt, options={"temperature": temperature}
+            model=self._model_name,
+            prompt=prompt,
+            options={"temperature": temperature},
+            **additional_params,
         )
 
-        return ModelResponse(message=response)
+        return ModelResponse(message=response.response)
 
-    def _Connection__calculate_embeddings(
-        self, prompts: list[str]
-    ) -> list[list[float]]:
+    def __calculate_embeddings__(self, prompts: list[str]) -> list[list[float]]:
         return ollama.embed(model=self._model_name, input=prompts).embeddings
 
     def __mediate__(
@@ -905,9 +945,18 @@ class WatsonXConnection(Connection):
     def __get_info__(self):
         return "Model: " + self.__model_name__ + " (through watsonx.ai)"
 
-    def _Connection__make_request(
-        self, prompt: str, temperature: int, alternative_tokens: bool = False
+    def __make_request__(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        temperature: int,
+        alternative_tokens: bool = False,
     ) -> ModelResponse:
+        messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+
+        if system_prompt is not None:
+            messages = [{"role": "system", "content": system_prompt}] + messages
+
         response = requests.post(
             self.__get_url__("chat"),
             headers={
@@ -916,9 +965,7 @@ class WatsonXConnection(Connection):
                 "Content-Type": "application/json",
             },
             json={
-                "messages": [
-                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
-                ],
+                "messages": messages,
                 "model_id": self.__model_name__,
                 "project_id": self.__project_id__,
                 "temperature": temperature,
@@ -946,9 +993,7 @@ class WatsonXConnection(Connection):
 
         return model_response
 
-    def _Connection__calculate_embeddings(
-        self, prompts: list[str]
-    ) -> list[list[float]]:
+    def __calculate_embeddings__(self, prompts: list[str]) -> list[list[float]]:
         response = requests.post(
             self.__get_url__("embeddings"),
             headers={
