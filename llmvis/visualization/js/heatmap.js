@@ -23,6 +23,10 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
     const FONT_COLOR = 'white';
     const EXPLANATION_BOX_WIDTH = 160;
     const EXPLANATION_BOX_HEIGHT = 112;
+    const PALETTE = [
+        [69, 69, 69],
+        [176, 46, 52]
+    ];
 
     var chunkData;
     var chunkSize;
@@ -33,12 +37,34 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
 
     CTX.clearRect(0, 0, HEATMAP_CANVAS.width, HEATMAP_CANVAS.height);
 
-    chunkData = drawUnits(CTX, X_INIT, Y_INIT, maxWeight, minWeight, units, UNIT_SIZES, SPACING,
-        HEATMAP_CANVAS, MARGIN, LARGE_FONT, FONT_COLOR);
+    chunkData = drawUnits(
+        CTX,
+        X_INIT,
+        Y_INIT,
+        maxWeight,
+        minWeight,
+        units,
+        UNIT_SIZES,
+        SPACING,
+        HEATMAP_CANVAS,
+        MARGIN,
+        LARGE_FONT,
+        FONT_COLOR,
+        PALETTE
+    );
     chunks = chunkData[0];
     chunkSize = chunkData[1];
 
-    drawKey(HEATMAP_CANVAS, CTX, BOTTOM_SPACE, SPACING, MEDIUM_FONT, FONT_COLOR, maxWeight, minWeight);
+    drawKey(
+        HEATMAP_CANVAS,
+        CTX,
+        BOTTOM_SPACE,
+        SPACING, MEDIUM_FONT,
+        FONT_COLOR,
+        PALETTE,
+        maxWeight,
+        minWeight
+    );
 
     HEATMAP_CANVAS.onmousemove = function (event) {
         const mouseX = event.clientX - RECT.left;
@@ -168,7 +194,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
      *      ID to the units in that chunk for use by the mouse callback and the
      *      second element is the size of each chunk.
      */
-    function drawUnits(ctx, xInit, yInit, maxWeight, minWeight, units, unitSizes, spacing, canvas, margin, font, fontColor) {
+    function drawUnits(ctx, xInit, yInit, maxWeight, minWeight, units, unitSizes, spacing, canvas, margin, font, fontColor, palette) {
         var x = xInit;
         var y = yInit;
         var chunkSize;
@@ -192,7 +218,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
             }
 
             ctx.font = font;
-            ctx.fillStyle = calculateRgb(unit.weight, maxWeight, minWeight);
+            ctx.fillStyle = calculateRgb(unit.weight, maxWeight, minWeight, palette);
 
             // Rounded rectangle
             ctx.beginPath();
@@ -245,18 +271,18 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
      * @param {number} maxWeight The maximum weight out of all the units.
      * @param {number} minWeight The minimum weight out of all the units.
      */
-    function drawKey(canvas, ctx, bottomSpace, spacing, font, fontColor, maxWeight, minWeight) {
+    function drawKey(canvas, ctx, bottomSpace, spacing, font, fontColor, palette, maxWeight, minWeight) {
         const Y_POS = canvas.height - (bottomSpace / 2);
         const GRADIENT = ctx.createLinearGradient(spacing, Y_POS,
             canvas.width - spacing, Y_POS);
         const KEY_GRADIENT_HEIGHT = 20;
 
         // Beginning of the gradient - blue value
-        GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight));
+        GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight, palette));
         // Middle of the gradient - grey value
-        GRADIENT.addColorStop(0.5, calculateRgb((minWeight+maxWeight)/2, maxWeight, minWeight));
+        GRADIENT.addColorStop(0.5, calculateRgb((minWeight+maxWeight)/2, maxWeight, minWeight, palette));
         // End of the gradient - red value
-        GRADIENT.addColorStop(1, calculateRgb(maxWeight, maxWeight, minWeight));
+        GRADIENT.addColorStop(1, calculateRgb(maxWeight, maxWeight, minWeight, palette));
 
         ctx.fillStyle = GRADIENT;
         ctx.fillRect(spacing, Y_POS, canvas.width - spacing * 2, KEY_GRADIENT_HEIGHT);
