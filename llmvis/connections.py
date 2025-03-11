@@ -168,7 +168,7 @@ class Connection(abc.ABC):
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
-        sampling_ratio: float = 0.5,
+        sampling_ratio: float = 0.0,
         use_inverse_perplexity: bool = False,
         test_system_prompt: bool = False,
     ) -> Visualizer:
