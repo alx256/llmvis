@@ -279,7 +279,12 @@ class TextHeatmap(Visualization):
     on a corresponding weight.
     """
 
-    def __init__(self, units: list[Unit]):
+    def __init__(
+        self,
+        units: list[Unit],
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None,
+    ):
         """
         Create a new `TextHeatmap` for a provided list of `Unit`s.
 
@@ -287,6 +292,14 @@ class TextHeatmap(Visualization):
             units (list[Unit]): A list of `Unit`s (such as words) that
                 make up the chunk of text that should be
                 visualized.
+            min_value (Optional[float]): An optional minimum value that
+                will be used for the colouring or `None` to disable and
+                automatically use the maximum weight of the units.
+                Default is `None`.
+            max_value (Optional[float]): An optional maximum value that
+                will be used for the colouring or `None` to disable and
+                automatically use the maximum weight of the units.
+                Default is `None`.
         """
 
         super().__init__()
@@ -296,12 +309,19 @@ class TextHeatmap(Visualization):
         max_weight = None
         min_weight = None
 
-        for unit in units:
-            if max_weight == None or max_weight < unit.weight:
-                max_weight = unit.weight
+        if min_value is not None and max_value is not None:
+            # Both a maximum weight and a minimum weight has
+            # been defined, so no need to automatically find
+            # this.
+            max_weight = max_value
+            min_weight = min_value
+        else:
+            for unit in units:
+                if max_weight is None or max_weight < unit.weight:
+                    max_weight = unit.weight
 
-            if min_weight == None or min_weight > unit.weight:
-                min_weight = unit.weight
+                if min_weight is None or min_weight > unit.weight:
+                    min_weight = unit.weight
 
         self.__max_weight = max_weight
         self.__min_weight = min_weight

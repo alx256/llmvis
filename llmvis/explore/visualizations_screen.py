@@ -1,8 +1,18 @@
-from PyQt6.QtWidgets import (QWidget, QDialog, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QLineEdit, QComboBox, QSizePolicy)
+from PyQt6.QtWidgets import (
+    QWidget,
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QComboBox,
+    QSizePolicy,
+)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from llmvis.connections import OllamaConnection
 from typing import Callable
+
 
 class WordImportanceDialog(QDialog):
     """
@@ -31,7 +41,7 @@ class WordImportanceDialog(QDialog):
 
         # Prompt line with a text input for the prompt
         prompt_line_layout = QHBoxLayout()
-        prompt_line_layout.addWidget(QLabel('Prompt: '))
+        prompt_line_layout.addWidget(QLabel("Prompt: "))
         self.__prompt = QLineEdit()
         prompt_line_layout.addWidget(self.__prompt)
         prompt_line = QWidget()
@@ -39,15 +49,15 @@ class WordImportanceDialog(QDialog):
 
         # Metric line with a dropdown for the metrics available
         metric_line_layout = QHBoxLayout()
-        metric_line_layout.addWidget(QLabel('Metric: '))
+        metric_line_layout.addWidget(QLabel("Metric: "))
         self.__metric_dropdown = QComboBox()
-        self.__metric_dropdown.addItems(['Generation Shapley', 'Embedding Shapley'])
+        self.__metric_dropdown.addItems(["Generation Shapley", "Embedding Shapley"])
         metric_line_layout.addWidget(self.__metric_dropdown)
         metric_line = QWidget()
         metric_line.setLayout(metric_line_layout)
 
         # The start button, which starts the visualization
-        self.__start_button = QPushButton('Start')
+        self.__start_button = QPushButton("Start")
         self.__start_button.clicked.connect(self.__start)
 
         layout.addWidget(prompt_line)
@@ -55,7 +65,7 @@ class WordImportanceDialog(QDialog):
         layout.addWidget(self.__start_button)
 
         self.setLayout(layout)
-    
+
     def __start(self):
         """
         Called when the 'start' button is pressed. Calls the callback
@@ -63,9 +73,9 @@ class WordImportanceDialog(QDialog):
         closing this box in the process.
         """
 
-        self.__callback(self.__prompt.text(),
-            self.__metric_dropdown.currentText())
+        self.__callback(self.__prompt.text(), self.__metric_dropdown.currentText())
         self.close()
+
 
 class VisualizationsScreen(QWidget):
     """
@@ -80,18 +90,19 @@ class VisualizationsScreen(QWidget):
 
         super().__init__()
 
-        if data['service'] == 'Ollama':
-            self.__conn = OllamaConnection(data['model'])
+        if data["service"] == "Ollama":
+            self.__conn = OllamaConnection(data["model"])
 
         layout = QVBoxLayout()
-        title = QLabel('Select a visualization')
-        title.setObjectName('title')
+        title = QLabel("Select a visualization")
+        title.setObjectName("title")
         layout.addWidget(title)
 
-        token_importance_button = QPushButton('Word Importance')
+        token_importance_button = QPushButton("Word Importance")
         token_importance_button.clicked.connect(self.__token_importance)
-        token_importance_button.setSizePolicy(QSizePolicy.Policy.Fixed,
-            QSizePolicy.Policy.Fixed)
+        token_importance_button.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
 
         layout.addWidget(token_importance_button)
         layout.addStretch()
@@ -118,11 +129,11 @@ class VisualizationsScreen(QWidget):
                 visualized.
         """
 
-        if metric == 'Generation Shapley':
-            vis = self.__conn.word_importance_gen_shapley(prompt)
-        elif metric == 'Embedding Shapley':
+        if metric == "Generation Shapley":
+            vis = self.__conn.word_importance_gen(prompt)
+        elif metric == "Embedding Shapley":
             vis = self.__conn.word_importance_embed_shapley(prompt)
-        
+
         web_view = QWebEngineView()
         web_view.setHtml(vis.get_source())
 

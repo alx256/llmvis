@@ -105,6 +105,19 @@ WORD_IMPORTANCE_EMBED_SHAPLEY = 1
 K_TEMPERATURE_SAMPLING = 2
 
 
+class ImportanceMetric:
+    """
+    The approach that should be used for calculating the
+    importance of a `Unit`. Available options:
+
+    - **INVERSE_COSINE** - `1.0 - {calculated cosine similarity}`
+    - **SHAPLEY** - Game theory Shapley value
+    """
+
+    INVERSE_COSINE = "Inverse Cosine Similarity"
+    SHAPLEY = "Shapley Value"
+
+
 class ModelResponse:
     """
     Object to contain a response that a model can give,
@@ -164,10 +177,11 @@ class Connection(abc.ABC):
 
         # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
 
-    def word_importance_gen_shapley(
+    def word_importance_gen(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
+        similarity_index: str = ImportanceMetric.INVERSE_COSINE,
         sampling_ratio: float = 0.0,
         use_inverse_perplexity: bool = False,
         test_system_prompt: bool = False,
@@ -197,6 +211,16 @@ class Connection(abc.ABC):
             for the importance of each word.
         """
 
+        if similarity_index != ImportanceMetric.SHAPLEY and sampling_ratio != 0.0:
+            raise RuntimeError(
+                "Sampling ratio is only supported with the Shapley similary index"
+            )
+
+        if test_system_prompt and system_prompt is None:
+            raise RuntimeError(
+                "Cannot test the system prompt if no system prompt is provided!"
+            )
+
         # Start responses
         responses = [
             self.__make_request__(
@@ -207,11 +231,6 @@ class Connection(abc.ABC):
             )
         ]
         outputs = [responses[0].message]
-
-        if test_system_prompt and system_prompt is None:
-            raise RuntimeError(
-                "Cannot test the system prompt if no system prompt is provided!"
-            )
 
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
         test_prompt = prompt if not test_system_prompt else system_prompt
@@ -258,14 +277,22 @@ class Connection(abc.ABC):
         ).flatten()
 
         # Start the visualization
-        shapley_vals = combinator.get_shapley_values(similarities)
+        vals = []
+
+        if similarity_index == ImportanceMetric.INVERSE_COSINE:
+            vals = [1.0 - similarity for similarity in similarities]
+        elif similarity_index == ImportanceMetric.SHAPLEY:
+            vals = combinator.get_shapley_values(similarities)
+        else:
+            raise RuntimeError("Invalid similarity index used!")
+
         importance_units = []
         inverse_perplexity_units = []
         table_contents = []
 
         for i in range(len(separated_prompt)):
             text = separated_prompt[i]
-            shapley_value = shapley_vals[i]
+            val = vals[i]
             response = responses[i + 1]
 
             # Each unit's weight represents the shapley
@@ -273,9 +300,9 @@ class Connection(abc.ABC):
             importance_units.append(
                 Unit(
                     text,
-                    shapley_value,
+                    val,
                     [
-                        ("Shapley Value", shapley_value),
+                        (similarity_index, val),
                         ("Generated Prompt", response.message),
                     ],
                 )
@@ -316,11 +343,19 @@ class Connection(abc.ABC):
                 # "Shapley Value",
                 "Cosine Difference",
             ],
-            weights=[0.0] + shapley_vals,
+            weights=[0.0] + vals,
         )
         table_heatmap.set_comments(self.__get_info__())
-        text_heatmap = TextHeatmap(importance_units)
+
+        additional_args = {}
+
+        if similarity_index == ImportanceMetric.INVERSE_COSINE:
+            additional_args["min_value"] = 0.0
+            additional_args["max_value"] = 1.0
+
+        text_heatmap = TextHeatmap(importance_units, **additional_args)
         text_heatmap.set_comments(self.__get_info__())
+
         tag_cloud = TagCloud(importance_units)
         tag_cloud.set_comments(self.__get_info__())
 

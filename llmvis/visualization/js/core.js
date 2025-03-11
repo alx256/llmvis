@@ -161,6 +161,18 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
      */
 function calculateRgb(weight, maxWeight, minWeight,
         palette = [[43, 58, 122], [69, 69, 69], [176, 46, 52]]) {
+    // Clamp values, warning just for the record. Can occur with
+    // a mistake, but precision errors can also cause this.
+    if (weight < minWeight) {
+        console.warn(`Weight ${weight} is less than minimum weight ${minWeight}`)
+        weight = minWeight;
+    }
+
+    if (weight > maxWeight) {
+        console.warn(`Weight ${weight} is greater than maximum weight ${maxWeight}`)
+        weight = maxWeight;
+    }
+
     const NORMALIZED_WEIGHT = (weight - minWeight)/(maxWeight - minWeight);
     const INDEX = (maxWeight != minWeight) ?
         NORMALIZED_WEIGHT*(palette.length-1) :

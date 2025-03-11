@@ -137,7 +137,7 @@ class Combinator:
 
         return samples
 
-    def get_missing_terms(self, index: int) -> ArrayLike[int]:
+    def get_missing_terms(self, index: int) -> ArrayLike:
         """
         Get an `ArrayLike` containing the indices in the original
         separated prompt that have been removed for a given combination
