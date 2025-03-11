@@ -190,6 +190,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
      * @param {string} font The font that should be used for each unit.
      * @param {string} fontColor The color that should be used for rendering
      *      the fonts.
+     * @param {Array} palette The palette that should be used for colouring.
      * @returns A list where the first element is a map that maps each chunk
      *      ID to the units in that chunk for use by the mouse callback and the
      *      second element is the size of each chunk.
@@ -268,6 +269,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
      *      the units.
      * @param {string} fontColor The color that should be used when
      *      drawing the font.
+     * @param {list} palette The palette that should be used for colouring.
      * @param {number} maxWeight The maximum weight out of all the units.
      * @param {number} minWeight The minimum weight out of all the units.
      */
