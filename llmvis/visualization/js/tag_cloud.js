@@ -30,12 +30,6 @@ function drawTagCloud(canvasId, units) {
     units = units.slice(0, TAG_CLOUD_UNIT_COUNT);
     const MAX = parseFloat(units[0].weight);
     const MIN = parseFloat(units[units.length - 1].weight);
-    // "Shift" all values if there are negative values so that
-    // they are positive instead. Do this by creating a value
-    // (ADDER) that is added to all weights that will shift the lowest
-    // weight to 0 if there are negative weights.
-    const DIVISOR = Math.abs(MAX) + (MIN < 0) ? Math.abs(MIN) : 0;
-    const ADDER = (MIN < 0) ? Math.abs(MIN) : 0;
     const MIN_FONT_SIZE = 20;
     const MAX_FONT_SIZE = 60;
     const SHOWED_UNITS = units;
@@ -52,11 +46,8 @@ function drawTagCloud(canvasId, units) {
     // intersecting with any other unit.
     for (const UNIT of SHOWED_UNITS) {
         // Calculate size of unit based on its weight
-        var fontSize = Math.round(MAX_FONT_SIZE * ((parseFloat(UNIT.weight) + ADDER) / DIVISOR));
-
-        if (fontSize < MIN_FONT_SIZE) {
-            fontSize = MIN_FONT_SIZE;
-        }
+        var normal = (UNIT.weight - MIN)/(MAX - MIN);
+        var fontSize = Math.round(MIN_FONT_SIZE + normal*(MAX_FONT_SIZE - MIN_FONT_SIZE));
 
         TAG_CLOUD_CTX.fillStyle = 'white';
         TAG_CLOUD_CTX.font = `${fontSize}px DidactGothic`;
