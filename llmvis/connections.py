@@ -170,6 +170,7 @@ class Connection(abc.ABC):
         system_prompt: Optional[str] = None,
         sampling_ratio: float = 0.5,
         use_inverse_perplexity: bool = False,
+        test_system_prompt: bool = False,
     ) -> Visualizer:
         """
         Calculate the importance of each word in a given prompt
@@ -187,6 +188,9 @@ class Connection(abc.ABC):
             use_inverse_perplexity (bool): Set this to `True` to
                 enable inverse perplexity calculations for
                 hallucination detection.
+            test_system_prompt (bool): Set this to `True` to calculate
+                the word importance for the system prompt instead of
+                the main prompt.
 
         Returns:
             A `Visualizer` showing a table heatmap, a text heatmap and a tag cloud
@@ -203,10 +207,17 @@ class Connection(abc.ABC):
             )
         ]
         outputs = [responses[0].message]
+
+        if test_system_prompt and system_prompt is None:
+            raise RuntimeError(
+                "Cannot test the system prompt if no system prompt is provided!"
+            )
+
         # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
-        separated_prompt = prompt.split(" ")
+        test_prompt = prompt if not test_system_prompt else system_prompt
+        separated_prompt = test_prompt.split(" ")
         combinator = Combinator(separated_prompt)
-        requests = [prompt]
+        requests = [test_prompt]
 
         for i, combination in enumerate(combinator.get_combinations()):
             request = self.__flatten_words(combination, delimiter=" ")
