@@ -218,8 +218,9 @@ class Connection(abc.ABC):
         separated_prompt = test_prompt.split(" ")
         combinator = Combinator(separated_prompt)
         requests = [test_prompt]
+        missing_terms_strs = []
 
-        for i, combination in enumerate(combinator.get_combinations()):
+        for i, combination in enumerate(combinator.get_combinations(r=sampling_ratio)):
             request = self.__flatten_words(combination, delimiter=" ")
             response = self.__make_request__(
                 request,
@@ -232,7 +233,17 @@ class Connection(abc.ABC):
             outputs.append(response.message)
 
             combination_local = combination.copy()
-            combination_local.insert(i, "_" * len(separated_prompt[i]))
+            missing_term_indices = combinator.get_missing_terms(i)
+            missing_terms_strs.append("")
+
+            for i, index in enumerate(missing_term_indices):
+                missing_term = separated_prompt[index]
+                combination_local.insert(index, "_" * len(missing_term))
+                missing_terms_strs[-1] += missing_term
+
+                if i < len(missing_term_indices) - 1:
+                    missing_terms_strs[-1] += ", "
+
             formatted_request = self.__flatten_words(combination_local, delimiter=" ")
 
             requests.append(formatted_request)
@@ -289,8 +300,8 @@ class Connection(abc.ABC):
             [
                 requests[i],
                 outputs[i],
-                separated_prompt[i - 1] if i > 0 else "N/A",
-                str(shapley_vals[i - 1]) if i > 0 else "N/A",
+                missing_terms_strs[i - 1] if i > 0 else "N/A",
+                # str(shapley_vals[i - 1]) if i > 0 else "N/A",
                 str(similarities[i - 1]) if i > 0 else "N/A",
             ]
             for i in range(len(outputs))
@@ -302,7 +313,7 @@ class Connection(abc.ABC):
                 "Prompt",
                 "Model Response",
                 "Missing Term",
-                "Shapley Value",
+                # "Shapley Value",
                 "Cosine Difference",
             ],
             weights=[0.0] + shapley_vals,
@@ -344,7 +355,7 @@ class Connection(abc.ABC):
 
         requests = [prompt] + [
             self.__flatten_words(combination, delimiter=" ")
-            for combination in combinator.get_combinations()
+            for combination in combinator.get_combinations(r=0.0)
         ]
 
         embeddings = np.array(self.__calculate_embeddings__(requests))
