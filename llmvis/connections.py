@@ -176,7 +176,7 @@ class Connection(abc.ABC):
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
-        similarity_index: str = ImportanceMetric.INVERSE_COSINE,
+        importance_metric: str = ImportanceMetric.INVERSE_COSINE,
         sampling_ratio: float = 0.0,
         use_inverse_perplexity: bool = False,
         test_system_prompt: bool = False,
@@ -206,7 +206,7 @@ class Connection(abc.ABC):
             for the importance of each word.
         """
 
-        if similarity_index != ImportanceMetric.SHAPLEY and sampling_ratio != 0.0:
+        if importance_metric != ImportanceMetric.SHAPLEY and sampling_ratio != 0.0:
             raise RuntimeError(
                 "Sampling ratio is only supported with the Shapley similary index"
             )
@@ -274,9 +274,9 @@ class Connection(abc.ABC):
         # Start the visualization
         vals = []
 
-        if similarity_index == ImportanceMetric.INVERSE_COSINE:
+        if importance_metric == ImportanceMetric.INVERSE_COSINE:
             vals = [1.0 - similarity for similarity in similarities]
-        elif similarity_index == ImportanceMetric.SHAPLEY:
+        elif importance_metric == ImportanceMetric.SHAPLEY:
             vals = combinator.get_shapley_values(similarities)
         else:
             raise RuntimeError("Invalid similarity index used!")
@@ -297,7 +297,7 @@ class Connection(abc.ABC):
                     text,
                     val,
                     [
-                        (similarity_index, val),
+                        (importance_metric, val),
                         ("Generated Prompt", response.message),
                     ],
                 )
@@ -344,15 +344,17 @@ class Connection(abc.ABC):
 
         additional_args = {}
 
-        if similarity_index == ImportanceMetric.INVERSE_COSINE:
+        if importance_metric == ImportanceMetric.INVERSE_COSINE:
             additional_args["min_value"] = 0.0
             additional_args["max_value"] = 1.0
 
+        importance_metric_comment = "Importance Metric: " + importance_metric
+
         text_heatmap = TextHeatmap(importance_units, **additional_args)
-        text_heatmap.set_comments(self.__get_info__())
+        text_heatmap.set_comments(self.__get_info__(), importance_metric_comment)
 
         tag_cloud = TagCloud(importance_units)
-        tag_cloud.set_comments(self.__get_info__())
+        tag_cloud.set_comments(self.__get_info__(), importance_metric_comment)
 
         visualizations = [table_heatmap, text_heatmap, tag_cloud]
 
