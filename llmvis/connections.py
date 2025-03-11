@@ -150,13 +150,8 @@ class Connection(abc.ABC):
     service.
     """
 
-    def __init__(self):
-        """
-        Create a new `Connection`.
-        """
-
-        self.__last_metric_id__ = -1
-        self.__last_metric_data__ = None
+    __last_metric_id__ = -1
+    __last_metric_data__ = {}
 
     def token_importance_gen(self, prompt: str):
         """
@@ -555,8 +550,8 @@ class Connection(abc.ABC):
         line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
         line_chart.set_comments(self.__get_info__())
 
-        self.__last_metric_id__ = K_TEMPERATURE_SAMPLING
-        self.__last_metric_data__ = {
+        Connection.__last_metric_id__ = K_TEMPERATURE_SAMPLING
+        Connection.__last_metric_data__ = {
             "samples": samples,
             "temperatures": temperatures,
         }
@@ -628,10 +623,10 @@ class Connection(abc.ABC):
                 before calling this.
         """
 
-        if self.__last_metric_id__ == -1:
+        if Connection.__last_metric_id__ == -1:
             raise RuntimeError("Cannnot show AI analytics if no metrics have been run!")
 
-        if self.__last_metric_id__ == K_TEMPERATURE_SAMPLING:
+        if Connection.__last_metric_id__ == K_TEMPERATURE_SAMPLING:
             return self.__k_temperature_sampling_ai_analytics__()
 
         raise RuntimeError(
@@ -649,8 +644,8 @@ class Connection(abc.ABC):
             visualizations.
         """
 
-        samples = self.__last_metric_data__["samples"]
-        temperatures = self.__last_metric_data__["temperatures"]
+        samples = Connection.__last_metric_data__["samples"]
+        temperatures = Connection.__last_metric_data__["temperatures"]
         response_data = None
         attempts = 0
         t = 0.0
