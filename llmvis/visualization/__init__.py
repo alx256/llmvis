@@ -148,10 +148,9 @@ class Visualizer:
         html += "</div>"
         for name in self.__visualizations.keys():
             html += '<div class="llmvis-visualization-content">'
-            html += '<table style="border-spacing:0px;">'
-            html += "<tr>"
+            html += '<div style="display:flex;flex-direction:row;overflow:hidden;">'
             for v in self.__visualizations[name]:
-                html += '<td style="padding:0px;">'
+                html += '<div class="llmvis-flex-child" style="flex:1;overflow:auto;max-width:100%;">'
                 html += '<table style="border-spacing:0px;">'
                 html += "<tr>"
                 html += '<td style="padding:0px">'
@@ -165,8 +164,8 @@ class Visualizer:
                 html += "</tr>"
                 html += "</table>"
                 html += "</td>"
-            html += "</tr>"
-            html += "</table>"
+                html += "</div>"
+            html += "</div>"
             html += "</div>"
         html += "</body>"
         html += "</html>"

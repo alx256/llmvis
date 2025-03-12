@@ -56,13 +56,15 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         maxProb = DRAW_RESULT.maxProb;
 
         if (readjust_window) {
+            // All flex childs will in theory be the same length, so just use the first
+            const FLEX_CHILD = document.getElementsByClassName("llmvis-flex-child")[0];
             var newWidth = (FURTHEST_EXTENT > window.innerWidth) ? FURTHEST_EXTENT : window.innerWidth;
 
             if (CANVAS.width != newWidth) {
                 CANVAS.width = newWidth;
                 updateAlternativeTokens(CTX, candidateTokenGroups,
                     selectedIndices, fallbackTokens, offsetScale, PALETTE);
-                CANVAS.parentElement.style.width = window.innerWidth.toString() + "px";
+                CANVAS.parentElement.style.width = FLEX_CHILD.clientWidth + "px";
             }
         }
     };
