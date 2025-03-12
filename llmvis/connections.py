@@ -589,6 +589,7 @@ class Connection(abc.ABC):
         model_response = self.__make_request__(
             prompt, system_prompt, temperature, alternative_tokens=True
         )
+        temperature_comment = f"Temperature: {temperature}"
 
         alternative_tokens = AlternativeTokens(
             model_response.candidate_token_groups,
@@ -597,10 +598,11 @@ class Connection(abc.ABC):
         )
         alternative_tokens.set_comments(
             self.__get_info__(),
-            f"Temperature: {temperature}",
+            temperature_comment,
         )
 
         radar_chart = TokenSpecificRadarChart(model_response.alternative_tokens)
+        radar_chart.set_comments(self.__get_info__(), temperature_comment)
 
         return Visualizer([alternative_tokens, radar_chart])
 
