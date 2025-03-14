@@ -66,7 +66,7 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
     var textYPos = BOX_RADIUS;
     var truncateRest = false;
 
-    for (i = 0; i < contents.length; i++) {
+    for (var i = 0; i < contents.length; i++) {
         var line = contents[i];
 
         for (j = 0; j < line.length; j++) {

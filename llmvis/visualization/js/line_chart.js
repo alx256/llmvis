@@ -127,7 +127,7 @@ function drawLineChart(canvasId, lineChartValues) {
     LINE_CHART_CTX.font = "15px DidactGothic";
 
     // Y Tick Values
-    for (i = minVal; i <= maxVal; i += step) {
+    for (var i = minVal; i <= maxVal; i += step) {
         const str = (stepDp <= 0) ? i.toString() : i.toFixed(stepDp).toString();
         const measurements = LINE_CHART_CTX.measureText(str);
 
@@ -147,7 +147,7 @@ function drawLineChart(canvasId, lineChartValues) {
     var nextX;
 
     // Draw the points and lines themselves
-    for (i = 0; i < lineChartValues.length; i++) {
+    for (var i = 0; i < lineChartValues.length; i++) {
         const ENTRY = lineChartValues[i];
         const NAME = ENTRY.x;
         const VALUE = ENTRY.y;

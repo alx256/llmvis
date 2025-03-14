@@ -266,7 +266,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     var furthestExtent;
     var chunks = new Map();
 
-    for (i = 0; i < candidateTokenGroups.length; i++) {
+    for (var i = 0; i < candidateTokenGroups.length; i++) {
         const GROUP = candidateTokenGroups[i];
         const SELECTED_INDEX = selectedIndices[i];
 

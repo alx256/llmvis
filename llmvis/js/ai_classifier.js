@@ -137,7 +137,7 @@ function drawAiClassifier(canvasId, classifiedData, points) {
     /*
     Main loop. Draw all the rects.
     */
-    for (i = 0; i < classifiedData.length; i++) {
+    for (var i = 0; i < classifiedData.length; i++) {
         const CLASS = classifiedData[i][0];
         const MATCHES = classifiedData[i][1];
         const MEASURED_WIDTH = classTextMeasurements[i];

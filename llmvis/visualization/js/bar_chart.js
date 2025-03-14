@@ -80,7 +80,7 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     // Y Tick Values
     var maxYTick = -1;
 
-    for (i = 0; i <= maxVal; i += step) {
+    for (var i = 0; i <= maxVal; i += step) {
         const str = (stepDp <= 0) ? i.toString() : i.toFixed(stepDp).toString();
         const measurements = BAR_CHART_CTX.measureText(str);
 
@@ -112,7 +112,7 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const INCREMENT = MAX_COLOR_VALUE / barChartValues.length * 3;
     var maxOpposite = -1;
 
-    for (i = 0; i < barChartValues.length; i++) {
+    for (var i = 0; i < barChartValues.length; i++) {
         const ENTRY = barChartValues[i];
         const NAME = ENTRY[0];
         const VALUE = ENTRY[1];

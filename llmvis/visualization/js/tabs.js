@@ -6,7 +6,7 @@ var activeVisualization = 0;
 TABS[activeVisualization].classList.add('selected');
 
 // Hide all visualizations except the active one
-for (i = 1; i < VISUALIZATION_CONTENT_AREAS.length; i++) {
+for (var i = 1; i < VISUALIZATION_CONTENT_AREAS.length; i++) {
     VISUALIZATION_CONTENT_AREAS[i].style.display = 'none';
 }
 

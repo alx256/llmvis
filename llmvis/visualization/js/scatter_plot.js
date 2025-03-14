@@ -116,7 +116,7 @@ function drawAxes(canvas, ctx, color, maxX, maxY, padding) {
     var stepX = (canvas.width - padding*2) / SCATTER_PLOT_STEP_COUNT;
     var stepY = (canvas.height - padding*2) / SCATTER_PLOT_STEP_COUNT;
 
-    for (i = 0; i < SCATTER_PLOT_STEP_COUNT; i++) {
+    for (var i = 0; i < SCATTER_PLOT_STEP_COUNT; i++) {
         const X = i * stepX;
         const Y = i * stepY;
 
