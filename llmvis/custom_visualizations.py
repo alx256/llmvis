@@ -267,7 +267,7 @@ class AlternativeTokens(Visualization):
         html += f'<canvas id="{self.get_uuid()}" width="1280" height="500">'
         html += "</canvas>"
         html += "</div>"
-        html += f'<canvas id="{self.__legend_id__}" width="500", height="110'
+        html += f'<canvas id="{self.__legend_id__}" width="500", height="110">'
         html += "</canvas>"
         return html
 
