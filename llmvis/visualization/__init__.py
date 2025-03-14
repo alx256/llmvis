@@ -46,11 +46,11 @@ class Visualizer:
 
         environment = str(type(get_ipython()))
         is_jupyter = "zmqshell" in environment
+        full_html = self.get_html() + "<script>" + self.get_js() + "</script>"
 
         if is_jupyter:
             # Jupyter Notebook
-            display(HTML(self.get_html()))
-            display(Javascript(self.get_js()))
+            display(HTML(full_html))
         else:
             # Write the HTML data to a file first so we can just open
             # this using the browser
@@ -61,7 +61,7 @@ class Visualizer:
 
             out = llmvis_dir / "out.html"
             out.write_text(
-                self.get_html() + "<script>" + self.get_js() + "</script>",
+                full_html,
                 encoding="utf-8",
             )
 
