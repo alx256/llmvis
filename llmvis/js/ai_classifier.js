@@ -99,7 +99,6 @@ function drawAiClassifier(canvasId, classifiedData, points) {
 
     const Y_AXIS_SEGMENT_HEIGHT = (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / classifiedData.length;
     const X_AXIS_SEGMENT_WIDTH = (AXIS_END_POINT_X - AXIS_START_POINT_X) / points.length;
-    // var yPosition = AXIS_END_POINT_Y +  Y_AXIS_SEGMENT_HEIGHT/2;
     var yPosition = AXIS_END_POINT_Y;
 
     /*
@@ -163,7 +162,7 @@ function drawAiClassifier(canvasId, classifiedData, points) {
             
             const RECT_X = (SHOULD_CONNECT) ? lastX : X + RECT_MARGINS;
             const RECT_Y = yPosition;
-            const RECT_WIDTH = X_AXIS_SEGMENT_WIDTH*connectors - RECT_MARGINS*2;
+            const RECT_WIDTH = X_AXIS_SEGMENT_WIDTH*connectors;
             const RECT_HEIGHT = Y_AXIS_SEGMENT_HEIGHT - RECT_MARGINS;
 
             CLASSIFIER_CTX.beginPath();
