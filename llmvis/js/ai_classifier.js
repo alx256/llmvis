@@ -103,7 +103,6 @@ function drawAiClassifier(canvasId, classifiedData, points) {
 
     const MAX_COLOR_VALUE = 158;
 
-    var rgb = [MAX_COLOR_VALUE, 0, 0];
     var channel = 1;
     var multiplier = 1;
 
@@ -141,7 +140,7 @@ function drawAiClassifier(canvasId, classifiedData, points) {
         const CLASS = classifiedData[i][0];
         const MATCHES = classifiedData[i][1];
         const MEASURED_WIDTH = classTextMeasurements[i];
-        const RECT_COLOR = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        const RECT_COLOR = calculateRgb(i, classifiedData.length - 1, 0);
 
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
         CLASSIFIER_CTX.fillText(CLASS, AXIS_START_POINT_X - MEASURED_WIDTH + LABEL_MARGINS, yPosition);
@@ -188,15 +187,6 @@ function drawAiClassifier(canvasId, classifiedData, points) {
             }
         }
 
-        // Ensure each class has a different color
-        rgb[channel] += INCREMENT*multiplier;
-
-        if (rgb[channel] >= MAX_COLOR_VALUE) {
-            rgb[channel] = MAX_COLOR_VALUE;
-            multiplier *= -1;
-            channel = (channel - 1) % 3;
-        }
-        
         yPosition += Y_AXIS_SEGMENT_HEIGHT;
     }
 }
