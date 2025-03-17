@@ -909,15 +909,13 @@ class OllamaConnection(Connection):
         self, prompt: str, data: list[any], format: dict[any, any], temperature: int
     ) -> Optional[dict[any, any]]:
         try:
-            response = ollama.chat(
+            response = ollama.generate(
                 model=self._model_name,
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": json.dumps({"input": data})},
-                ],
+                prompt=json.dumps({"input", data}),
+                system=prompt,
                 options={"temperature": temperature},
                 format=format,
-            ).message.content
+            ).response
             return json.loads(response)
         except json.decoder.JSONDecodeError:
             # LLM gave a response that was unexpected as it did not only contain
