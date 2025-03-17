@@ -104,8 +104,6 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
         }
     }
 
-    // Used for assigning a different colour to each bar
-    var rgb = [MAX_COLOR_VALUE, 0, 0];
     var channel = 1;
     var multiplier = 1;
 
@@ -122,16 +120,8 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
         const TEXT_WIDTH = MEASUREMENTS.width;
         const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent + MEASUREMENTS.actualBoundingBoxDescent;
 
-        BAR_CHART_CTX.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        BAR_CHART_CTX.fillStyle = calculateRgb(i, barChartValues.length - 1, 0);
         BAR_CHART_CTX.fillRect(X, AXIS_START_POINT_Y, BAR_WIDTH, -((VALUE / maxVal) * (AXIS_START_POINT_Y - AXIS_END_POINT_Y)));
-
-        rgb[channel] += INCREMENT*multiplier;
-
-        if (rgb[channel] >= MAX_COLOR_VALUE) {
-            rgb[channel] = MAX_COLOR_VALUE;
-            multiplier *= -1;
-            channel = (channel - 1) % 3;
-        }
 
         // X-Axis Categorical Labels
         BAR_CHART_CTX.save();
