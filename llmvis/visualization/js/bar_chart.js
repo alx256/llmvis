@@ -73,15 +73,14 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     var yTickPos = AXIS_START_POINT_Y;
     var maxBarHeight = -1;
 
-    // TODO: Increase step for integer values if max value is too high
-    const step = (intValues) ? 1 : maxVal / Y_TICK_COUNT;
-    const stepDp = step.toString().length - 1 /* '.' char */ - Math.round(step).toString().length;
-    
+    const step = maxVal / Y_TICK_COUNT;
+
     // Y Tick Values
     var maxYTick = -1;
+    var yPoint = 0;
 
-    for (var i = 0; i <= maxVal; i += step) {
-        const str = (stepDp <= 0) ? i.toString() : i.toFixed(stepDp).toString();
+    for (var i = 0; i <= Y_TICK_COUNT; i++) {
+        const str = (Number.isInteger(yPoint)) ? yPoint.toString() : yPoint.toPrecision(2).toString();
         const measurements = BAR_CHART_CTX.measureText(str);
 
         BAR_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
@@ -91,13 +90,14 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
         BAR_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
             yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
 
-        if (i == maxVal) {
+        if (yPoint > maxBarHeight) {
             // Store the y tick position for the highest value.
             // This is used for drawing the bars as a fraction of this
             maxBarHeight = yTickPos;
         }
 
         yTickPos -= (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / (maxVal / step);
+        yPoint += step;
 
         if (measurements.width > maxYTick) {
             maxYTick = measurements.width;
