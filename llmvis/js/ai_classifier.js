@@ -99,14 +99,8 @@ function drawAiClassifier(canvasId, classifiedData, points) {
 
     const Y_AXIS_SEGMENT_HEIGHT = (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / classifiedData.length;
     const X_AXIS_SEGMENT_WIDTH = (AXIS_END_POINT_X - AXIS_START_POINT_X) / points.length;
-    var yPosition = AXIS_END_POINT_Y +  Y_AXIS_SEGMENT_HEIGHT/2;
-
-    const MAX_COLOR_VALUE = 158;
-
-    var channel = 1;
-    var multiplier = 1;
-
-    const INCREMENT = MAX_COLOR_VALUE/classifiedData.length * 3;
+    // var yPosition = AXIS_END_POINT_Y +  Y_AXIS_SEGMENT_HEIGHT/2;
+    var yPosition = AXIS_END_POINT_Y;
 
     /*
     Draw point labels on the x-axis.
@@ -143,7 +137,9 @@ function drawAiClassifier(canvasId, classifiedData, points) {
         const RECT_COLOR = calculateRgb(i, classifiedData.length - 1, 0);
 
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
-        CLASSIFIER_CTX.fillText(CLASS, AXIS_START_POINT_X - MEASURED_WIDTH + LABEL_MARGINS, yPosition);
+        CLASSIFIER_CTX.fillText(CLASS,
+            AXIS_START_POINT_X - MEASURED_WIDTH + LABEL_MARGINS,
+            yPosition + Y_AXIS_SEGMENT_HEIGHT/2);
 
         var last = undefined;
         var lastX = undefined;
@@ -166,8 +162,8 @@ function drawAiClassifier(canvasId, classifiedData, points) {
             }
             
             const RECT_X = (SHOULD_CONNECT) ? lastX : X + RECT_MARGINS;
-            const RECT_Y = yPosition - Y_AXIS_SEGMENT_HEIGHT/2 + RECT_MARGINS;
-            const RECT_WIDTH = X_AXIS_SEGMENT_WIDTH*connectors - RECT_MARGINS;
+            const RECT_Y = yPosition;
+            const RECT_WIDTH = X_AXIS_SEGMENT_WIDTH*connectors - RECT_MARGINS*2;
             const RECT_HEIGHT = Y_AXIS_SEGMENT_HEIGHT - RECT_MARGINS;
 
             CLASSIFIER_CTX.beginPath();
