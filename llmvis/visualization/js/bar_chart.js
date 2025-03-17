@@ -27,7 +27,6 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const AXIS_END_POINT_Y = BAR_CHART_AXIS_PADDING;
 
     var maxVal = -1;
-    var intValues = true;
 
     /*
     Initial pass through the values.
@@ -40,8 +39,6 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
         if (value[1] > maxVal) {
             maxVal = value[1];
         }
-
-        intValues &&= Number.isInteger(value[1]);
     }
 
     const FULL_BAR_WIDTH = (AXIS_END_POINT_X - AXIS_START_POINT_X) / barChartValues.length;
@@ -50,7 +47,6 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const Y_TICK_COUNT = 10;
     const Y_TICK_LENGTH = 5;
     const X_TICK_LENGTH = 5;
-    const MAX_COLOR_VALUE = 158;
     const X_AXIS_TICKS_ROTATION_DEGREE = 45;
     const X_AXIS_TICKS_MARGIN = 10;
     const X_AXIS_LABEL_SPACING = 4;
@@ -73,22 +69,46 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     var yTickPos = AXIS_START_POINT_Y;
     var maxBarHeight = -1;
 
-    const step = maxVal / Y_TICK_COUNT;
+    // Calculate a step that is "nice"
+    const UNSCALED_STEP = maxVal/Y_TICK_COUNT
+    const OOM = Math.floor(Math.log10(UNSCALED_STEP));
+    const POWED = Math.pow(10, OOM);
+    const FRAC = parseFloat((UNSCALED_STEP / POWED).toPrecision(12));
+    var scaledFrac;
+
+    if (FRAC < 1.5) {
+        scaledFrac = 1;
+    } else if (FRAC < 3) {
+        scaledFrac = 2
+    } else if (FRAC < 7) {
+        scaledFrac = 5;
+    } else {
+        scaledFrac = 10;
+    }
+
+    const step = scaledFrac*POWED;
 
     // Y Tick Values
     var maxYTick = -1;
     var yPoint = 0;
 
     for (var i = 0; i <= Y_TICK_COUNT; i++) {
-        const str = (Number.isInteger(yPoint)) ? yPoint.toString() : yPoint.toPrecision(2).toString();
+        // Correct potential floating point errors
+        yPoint = parseFloat(yPoint.toPrecision(12));
+
+        const str = yPoint.toString();
         const measurements = BAR_CHART_CTX.measureText(str);
 
-        BAR_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
-        BAR_CHART_CTX.lineTo(AXIS_START_POINT_X - Y_TICK_LENGTH, yTickPos);
-    
-        BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
-        BAR_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
-            yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
+        if (Number.isInteger(yPoint)) {
+            // Only show the ticker if it is an integer to avoid
+            // confusion
+            BAR_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
+            BAR_CHART_CTX.lineTo(AXIS_START_POINT_X - Y_TICK_LENGTH, yTickPos);
+
+            BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
+            BAR_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
+                yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
+        }
 
         if (yPoint > maxBarHeight) {
             // Store the y tick position for the highest value.
@@ -104,10 +124,6 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
         }
     }
 
-    var channel = 1;
-    var multiplier = 1;
-
-    const INCREMENT = MAX_COLOR_VALUE / barChartValues.length * 3;
     var maxOpposite = -1;
 
     for (var i = 0; i < barChartValues.length; i++) {
