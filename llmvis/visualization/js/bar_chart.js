@@ -70,23 +70,24 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     var maxBarHeight = -1;
 
     // Calculate a step that is "nice"
-    const UNSCALED_STEP = maxVal/Y_TICK_COUNT
+    const UNSCALED_STEP = maxVal/Y_TICK_COUNT;
     const OOM = Math.floor(Math.log10(UNSCALED_STEP));
     const POWED = Math.pow(10, OOM);
     const FRAC = parseFloat((UNSCALED_STEP / POWED).toPrecision(12));
     var scaledFrac;
 
-    if (FRAC < 1.5) {
+    if (FRAC < 1) {
         scaledFrac = 1;
-    } else if (FRAC < 3) {
+    } else if (FRAC < 2) {
         scaledFrac = 2
-    } else if (FRAC < 7) {
+    } else if (FRAC < 5) {
         scaledFrac = 5;
     } else {
         scaledFrac = 10;
     }
 
     const step = scaledFrac*POWED;
+    maxVal = step*Math.ceil(maxVal/step);
 
     // Y Tick Values
     var maxYTick = -1;
@@ -121,6 +122,10 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
 
         if (measurements.width > maxYTick) {
             maxYTick = measurements.width;
+        }
+
+        if (yTickPos.toPrecision(12) < AXIS_END_POINT_Y) {
+            break;
         }
     }
 
