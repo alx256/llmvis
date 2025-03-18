@@ -67,26 +67,9 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     
     // Y Ticks
     var yTickPos = AXIS_START_POINT_Y;
-    var maxBarHeight = -1;
 
     // Calculate a step that is "nice"
-    const UNSCALED_STEP = maxVal/Y_TICK_COUNT;
-    const OOM = Math.floor(Math.log10(UNSCALED_STEP));
-    const POWED = Math.pow(10, OOM);
-    const FRAC = parseFloat((UNSCALED_STEP / POWED).toPrecision(12));
-    var scaledFrac;
-
-    if (FRAC < 1) {
-        scaledFrac = 1;
-    } else if (FRAC < 2) {
-        scaledFrac = 2
-    } else if (FRAC < 5) {
-        scaledFrac = 5;
-    } else {
-        scaledFrac = 10;
-    }
-
-    const step = scaledFrac*POWED;
+    const step = niceStep(maxVal, Y_TICK_COUNT);
     maxVal = step*Math.ceil(maxVal/step);
 
     // Y Tick Values
@@ -109,12 +92,6 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
             BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
             BAR_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
                 yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
-        }
-
-        if (yPoint > maxBarHeight) {
-            // Store the y tick position for the highest value.
-            // This is used for drawing the bars as a fraction of this
-            maxBarHeight = yTickPos;
         }
 
         yTickPos -= (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / (maxVal / step);

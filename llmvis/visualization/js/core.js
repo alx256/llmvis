@@ -160,7 +160,7 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
      *      that the unit should be based on the provided weight.
      */
 function calculateRgb(weight, maxWeight, minWeight,
-        palette = [[43, 58, 122], [69, 69, 69], [176, 46, 52]]) {
+        palette = [[176, 46, 52], [180, 157, 46], [48, 147, 38]]) {
     // Clamp values, warning just for the record. Can occur with
     // a mistake, but precision errors can also cause this.
     if (weight < minWeight) {
@@ -209,4 +209,34 @@ function calculateRgb(weight, maxWeight, minWeight,
 
 function arrayToRgb(arr) {
     return `rgb(${arr[0]}, ${arr[1]}, ${arr[2]})`;
+}
+
+/**
+ * Calculate the step between consecutive ticks on an axis
+ * based on its maximum value and the maximum number of ticks
+ * that should occur. Done in a "nice" way that makes it either
+ * 1, 2, 5 or 10 multiplied by an appropriate order of magnitude.
+ * @param {number} maxVal
+ * @param {number} tickCount
+ * @returns A "nice" step that can be used to separate consecutive
+ * ticks on the axis.
+ */
+function niceStep(maxVal, tickCount) {
+    const UNSCALED_STEP = maxVal/tickCount;
+    const OOM = Math.floor(Math.log10(UNSCALED_STEP));
+    const POWED = Math.pow(10, OOM);
+    const FRAC = parseFloat((UNSCALED_STEP / POWED).toPrecision(12));
+    var scaledFrac;
+
+    if (FRAC < 1) {
+        scaledFrac = 1;
+    } else if (FRAC < 2) {
+        scaledFrac = 2
+    } else if (FRAC < 5) {
+        scaledFrac = 5;
+    } else {
+        scaledFrac = 10;
+    }
+
+    return scaledFrac*POWED;
 }

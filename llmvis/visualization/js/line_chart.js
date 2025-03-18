@@ -105,7 +105,7 @@ function drawLineChart(canvasId, lineChartValues) {
     }
 
     maxVal += (intValues) ? 1 : maxVal * LINE_PADDING;
-    minVal = -maxVal;
+    minVal = 0;
 
     LINE_CHART_CTX.strokeStyle = LINE_CHART_STROKE_COLOR;
     LINE_CHART_CTX.beginPath();
@@ -121,24 +121,43 @@ function drawLineChart(canvasId, lineChartValues) {
     // Y Ticks
     var yTickPos = AXIS_START_POINT_Y;
 
-    const step = (intValues) ? 1 : maxVal / Y_TICK_COUNT;
-    const stepDp = step.toString().length - 1 /* '.' char */ - Math.round(step).toString().length;
+    const step = niceStep(maxVal, Y_TICK_COUNT);
+    maxVal = step*Math.ceil(maxVal/step);
 
     LINE_CHART_CTX.font = "15px DidactGothic";
 
+    var maxYTick = -1;
+    var yPoint = 0;
+
     // Y Tick Values
-    for (var i = minVal; i <= maxVal; i += step) {
-        const str = (stepDp <= 0) ? i.toString() : i.toFixed(stepDp).toString();
+    for (var i = 0; i <= Y_TICK_COUNT; i++) {
+        // Correct potential floating point errors
+        yPoint = parseFloat(yPoint.toPrecision(12));
+
+        const str = yPoint.toString();
         const measurements = LINE_CHART_CTX.measureText(str);
 
-        LINE_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
-        LINE_CHART_CTX.lineTo(AXIS_START_POINT_X - Y_TICK_LENGTH, yTickPos);
+        if ((intValues && Number.isInteger(yPoint)) || !intValues) {
+            // Only show the ticker if it is an integer to avoid
+            // confusion
+            LINE_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
+            LINE_CHART_CTX.lineTo(AXIS_START_POINT_X - Y_TICK_LENGTH, yTickPos);
 
-        LINE_CHART_CTX.fillStyle = LINE_CHART_STROKE_COLOR;
-        LINE_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
-            yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
+            LINE_CHART_CTX.fillStyle = LINE_CHART_STROKE_COLOR;
+            LINE_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
+                yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
+        }
 
-        yTickPos -= (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / ((maxVal * 2) / step);
+        yTickPos -= (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / (maxVal / step);
+        yPoint += step;
+
+        if (measurements.width > maxYTick) {
+            maxYTick = measurements.width;
+        }
+
+        if (yTickPos.toPrecision(12) < AXIS_END_POINT_Y) {
+            break;
+        }
     }
 
     // Gap between each point on the x axis
@@ -152,7 +171,7 @@ function drawLineChart(canvasId, lineChartValues) {
         const NAME = ENTRY.x;
         const VALUE = ENTRY.y;
         const X = LINE_CHART_AXIS_PADDING + X_GAP * i;
-        const Y = AXIS_END_POINT_Y + (1 - (VALUE / maxVal)) * ((AXIS_START_POINT_Y - AXIS_END_POINT_Y) / 2)
+        const Y = AXIS_END_POINT_Y + (1 - (VALUE / maxVal)) * ((AXIS_START_POINT_Y - AXIS_END_POINT_Y));
         const MEASUREMENTS = LINE_CHART_CTX.measureText(NAME.toFixed(roundDp));
         const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent + MEASUREMENTS.actualBoundingBoxDescent;
 
