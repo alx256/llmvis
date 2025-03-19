@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from llmvis.connections import OllamaConnection
+from llmvis.connections import OllamaConnection, WatsonXConnection
 from typing import Callable
 
 
@@ -92,6 +92,10 @@ class VisualizationsScreen(QWidget):
 
         if data["service"] == "Ollama":
             self.__conn = OllamaConnection(data["model"])
+        elif data["service"] == "watsonx.ai":
+            self.__conn = WatsonXConnection(
+                data["api_key"], data["project_id"], data["model"], data["location"]
+            )
 
         layout = QVBoxLayout()
         title = QLabel("Select a visualization")
