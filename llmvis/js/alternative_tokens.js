@@ -28,6 +28,9 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     const LEGEND_CANVAS = document.getElementById(legendId);
     const LEGEND_CTX = LEGEND_CANVAS.getContext('2d');
     const PALETTE = [[176, 46, 52], [180, 157, 46], [48, 147, 38]];
+    const FLEX_CONTAINER = CANVAS.closest(".llmvis-flex-container");
+    const FLEX_CHILD_COUNT = FLEX_CONTAINER.querySelectorAll(":scope > .llmvis-flex-child").length;
+    const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
 
     var currentScale = 1.0;
     var offsetScale = 1.0;
@@ -56,15 +59,13 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         maxProb = DRAW_RESULT.maxProb;
 
         if (readjust_window) {
-            // All flex childs will in theory be the same length, so just use the first
-            const FLEX_CHILD = document.getElementsByClassName("llmvis-flex-child")[0];
             var newWidth = (FURTHEST_EXTENT > window.innerWidth) ? FURTHEST_EXTENT : window.innerWidth;
 
             if (CANVAS.width != newWidth) {
                 CANVAS.width = newWidth;
                 updateAlternativeTokens(CTX, candidateTokenGroups,
                     selectedIndices, fallbackTokens, offsetScale, PALETTE);
-                CANVAS.parentElement.style.width = FLEX_CHILD.clientWidth + "px";
+                CANVAS.parentElement.style.width = FLEX_CHILD_WIDTH + "px";
             }
         }
     };

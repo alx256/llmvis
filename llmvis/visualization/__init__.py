@@ -148,7 +148,7 @@ class Visualizer:
         html += "</div>"
         for name in self.__visualizations.keys():
             html += '<div class="llmvis-visualization-content">'
-            html += '<div style="display:flex;flex-direction:row;overflow:hidden;">'
+            html += '<div class="llmvis-flex-container" style="display:flex;flex-direction:row;overflow:hidden;">'
             for v in self.__visualizations[name]:
                 html += '<div class="llmvis-flex-child" style="flex:1;overflow:auto;max-width:100%;">'
                 html += '<table style="border-spacing:0px;">'
