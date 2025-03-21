@@ -59,7 +59,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         HEATMAP_CANVAS,
         CTX,
         BOTTOM_SPACE,
-        SPACING, MEDIUM_FONT,
+        SPACING, SMALL_FONT,
         FONT_COLOR,
         PALETTE,
         maxWeight,
@@ -278,6 +278,8 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         const GRADIENT = ctx.createLinearGradient(spacing, Y_POS,
             canvas.width - spacing, Y_POS);
         const KEY_GRADIENT_HEIGHT = 20;
+        const START_TEXT = `${minWeight} (Lowest value)`
+        const END_TEXT = `${maxWeight} (Highest value)`
 
         // Beginning of the gradient - blue value
         GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight, palette));
@@ -294,10 +296,10 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
 
         // Measure the max weight to calculate how far in from the end of the canvas
         // it should be.
-        const measurements = ctx.measureText(maxWeight.toString());
+        const measurements = ctx.measureText(START_TEXT);
 
-        ctx.fillText(minWeight.toString(), spacing, Y_POS + KEY_GRADIENT_HEIGHT + spacing);
-        ctx.fillText(maxWeight.toString(), canvas.width - spacing - measurements.width,
+        ctx.fillText(START_TEXT, spacing, Y_POS + KEY_GRADIENT_HEIGHT + spacing);
+        ctx.fillText(END_TEXT, canvas.width - spacing - measurements.width,
             Y_POS + KEY_GRADIENT_HEIGHT + spacing);
     }
 }
