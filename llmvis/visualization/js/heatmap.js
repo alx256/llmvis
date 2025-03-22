@@ -7,8 +7,10 @@
  *      `weight` and `details`.
  * @param {number} minWeight The minimum weight out of all units.
  * @param {number} maxWeight The maximum weight out of all units.
+ * @param {number} colorScheme The integer value of the color scheme that
+ *      should be used.
  */
-function drawHeatmap(canvasId, units, minWeight, maxWeight) {
+function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
     const HEATMAP_CANVAS = document.getElementById(canvasId);
     const CTX = HEATMAP_CANVAS.getContext("2d");
     const RECT = HEATMAP_CANVAS.getBoundingClientRect();
@@ -23,14 +25,35 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
     const FONT_COLOR = 'white';
     const EXPLANATION_BOX_WIDTH = 160;
     const EXPLANATION_BOX_HEIGHT = 112;
-    const PALETTE = [
-        [69, 69, 69],
-        [176, 46, 52]
+    const COLOR_SCHEMES = [
+        [[45, 52, 124], [69, 69, 69], [176, 46, 52]],   // Blue -> Red
+        [[176, 46, 52], [69, 69, 69], [45, 52, 124]],   // Red -> Blue
+        [[48, 147, 38], [69, 69, 69], [176, 46, 52]],   // Green -> Red
+        [[176, 46, 52], [69, 69, 69], [48, 147, 38]]    // Red -> Green
     ];
+    const COLD_VALUE = COLOR_SCHEMES[colorScheme][0];
+    const NEUTRAL_VALUE = COLOR_SCHEMES[colorScheme][1];
+    const HOT_VALUE = COLOR_SCHEMES[colorScheme][2];
+    const FULL_PALETTE = [COLD_VALUE, NEUTRAL_VALUE, HOT_VALUE];
+    const POSITIVE_PALETTE = [NEUTRAL_VALUE, HOT_VALUE];
+    const NEGATIVE_PALETTE = [COLD_VALUE, NEUTRAL_VALUE];
 
     var chunkData;
     var chunkSize;
     var chunks;
+    var palette;
+
+    if (minWeight < 0.0 && maxWeight > 0.0) {
+        const MAX_ABS_VALUE = Math.max(Math.abs(minWeight), Math.abs(maxWeight));
+
+        palette = FULL_PALETTE;
+        minWeight = -MAX_ABS_VALUE;
+        maxWeight = MAX_ABS_VALUE;
+    } else if (minWeight < 0.0) {
+        palette = NEGATIVE_PALETTE;
+    } else {
+        palette = POSITIVE_PALETTE;
+    }
 
     const UNIT_SIZES = calculateCanvasSize(CTX, HEATMAP_CANVAS, units, X_INIT, Y_INIT,
         LARGE_FONT, MARGIN, SPACING, BOTTOM_SPACE);
@@ -50,7 +73,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         MARGIN,
         LARGE_FONT,
         FONT_COLOR,
-        PALETTE
+        palette
     );
     chunks = chunkData[0];
     chunkSize = chunkData[1];
@@ -61,7 +84,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         BOTTOM_SPACE,
         SPACING, SMALL_FONT,
         FONT_COLOR,
-        PALETTE,
+        palette,
         maxWeight,
         minWeight
     );
@@ -82,7 +105,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight) {
         // Mouse movements means that hover box should move accordingly
         // and appear/reappear if the cursor is now hovering/no longer
         // hovering over a unit.
-        drawHeatmap(canvasId, units, minWeight, maxWeight);
+        drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme);
 
         // Not hovering over anything
         if (chunk == undefined) {

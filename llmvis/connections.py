@@ -15,6 +15,7 @@ from sklearn.decomposition import PCA
 from llmvis.core.unit_importance import Combinator
 from llmvis.visualization import Visualizer
 from llmvis.visualization.visualization import (
+    HeatmapColorScheme,
     Point,
     Unit,
     TextHeatmap,
@@ -139,7 +140,7 @@ class ModelResponse:
         self.fallback_tokens = []
         self.alternative_tokens = []
         self.prob_sum = 0
-        self.generated_tokens = 0
+        self.generated_tokens_count = 0
 
 
 class Connection(abc.ABC):
@@ -178,7 +179,7 @@ class Connection(abc.ABC):
         system_prompt: Optional[str] = None,
         importance_metric: str = ImportanceMetric.INVERSE_COSINE,
         sampling_ratio: float = 0.0,
-        use_inverse_perplexity: bool = False,
+        use_perplexity_difference: bool = False,
         test_system_prompt: bool = False,
     ) -> Visualizer:
         """
@@ -194,8 +195,8 @@ class Connection(abc.ABC):
                 a system prompt use `None`. Default is `None`.
             sampling_ratio (float): How many random samples should
                 be carried out (0.0 for none)
-            use_inverse_perplexity (bool): Set this to `True` to
-                enable inverse perplexity calculations for
+            use_perplexity_difference (bool): Set this to `True` to
+                enable perplexity difference calculations for
                 hallucination detection.
             test_system_prompt (bool): Set this to `True` to calculate
                 the word importance for the system prompt instead of
@@ -222,7 +223,7 @@ class Connection(abc.ABC):
                 prompt,
                 system_prompt,
                 temperature=0.0,
-                alternative_tokens=use_inverse_perplexity,
+                alternative_tokens=use_perplexity_difference,
             )
         ]
         outputs = [responses[0].message]
@@ -240,7 +241,7 @@ class Connection(abc.ABC):
                 request,
                 system_prompt,
                 temperature=0.0,
-                alternative_tokens=use_inverse_perplexity,
+                alternative_tokens=use_perplexity_difference,
             )
 
             responses.append(response)
@@ -282,7 +283,10 @@ class Connection(abc.ABC):
             raise RuntimeError("Invalid similarity index used!")
 
         importance_units = []
-        inverse_perplexity_units = []
+        full_prompt_perplexity = self.__perplexity__(
+            responses[0].generated_tokens_count, responses[0].prob_sum
+        )
+        perplexity_difference_units = []
         table_contents = []
 
         for i in range(len(separated_prompt)):
@@ -303,18 +307,21 @@ class Connection(abc.ABC):
                 )
             )
 
-            if use_inverse_perplexity:
-                inverse_perplexity = self.__inverse_perplexity__(
-                    response.generated_tokens, response.prob_sum
+            if use_perplexity_difference:
+                perplexity = self.__perplexity__(
+                    response.generated_tokens_count, response.prob_sum
                 )
+                # Positive difference indicates rise in perplexity,
+                # negative indicates fall.
+                perplexity_difference = perplexity - full_prompt_perplexity
 
-                # Each unit's weight represents the inverse perplexity
-                # (hallucination likelihood) of that unit.
-                inverse_perplexity_units.append(
+                # Each unit's weight represents the perplexity
+                # (hallucination likelihood) difference of that unit.
+                perplexity_difference_units.append(
                     Unit(
                         text,
-                        inverse_perplexity,
-                        [("Inverse Perplexity", inverse_perplexity)],
+                        perplexity_difference,
+                        [("Perplexity Difference", perplexity_difference)],
                     )
                 )
 
@@ -358,11 +365,13 @@ class Connection(abc.ABC):
 
         visualizations = [table_heatmap, text_heatmap, tag_cloud]
 
-        if use_inverse_perplexity:
-            inverse_perplexity_heatmap = TextHeatmap(inverse_perplexity_units)
-            inverse_perplexity_heatmap.set_name("Inverse Perplexity Text Heatmap")
-            inverse_perplexity_heatmap.set_comments(self.__get_info__())
-            visualizations.append(inverse_perplexity_heatmap)
+        if use_perplexity_difference:
+            perplexity_difference_heatmap = TextHeatmap(
+                perplexity_difference_units, color_scheme=HeatmapColorScheme.GREEN_RED
+            )
+            perplexity_difference_heatmap.set_name("Perplexity Difference Text Heatmap")
+            perplexity_difference_heatmap.set_comments(self.__get_info__())
+            visualizations.append(perplexity_difference_heatmap)
 
         return Visualizer(visualizations)
 
@@ -749,9 +758,9 @@ class Connection(abc.ABC):
 
         return words_str
 
-    def __inverse_perplexity__(self, N: int, prob_sum: float) -> float:
+    def __perplexity__(self, N: int, prob_sum: float) -> float:
         """
-        Calculate the *inverse perplexity* of a model output, to determine
+        Calculate the *perplexity* of a model output, to determine
         the likelihood of hallucinations in the response.
 
         Args:
@@ -759,10 +768,9 @@ class Connection(abc.ABC):
             prob_sum (float): The sum of all log probabilities in the output.
 
         Returns:
-            A real-valued number representing the inverse perplexity of the
-            response.
+            A real-valued number representing the perplexity of the response.
         """
-        return math.exp((1 / N) * prob_sum)
+        return math.exp(-(1 / N) * prob_sum)
 
     @abc.abstractmethod
     def __get_info__(self):
@@ -1043,7 +1051,9 @@ class WatsonXConnection(Connection):
             model_response = self.__calculate_alternate_tokens__(data)
 
         model_response.message = choice["message"]["content"]
-        model_response.generated_tokens = response_json["usage"]["completion_tokens"]
+        model_response.generated_tokens_count = response_json["usage"][
+            "completion_tokens"
+        ]
 
         return model_response
 

@@ -272,6 +272,34 @@ class Visualization(abc.ABC):
         return html
 
 
+class HeatmapColorScheme:
+    """
+    The color scheme that a heatmap should use. This will determine
+    how different components are colored to indicate "hot" vs "cold"
+    values.
+
+    Values:
+    - `BLUE_RED`: Negative values use bluer colors, positive values use
+        redder colors. Good for classic heatmap behaviour using
+        colors that humans typically associate with heat.
+    - `RED_BLUE`: Inverse of `BLUE_RED`. Positive values use bluer colors,
+        negative values use redder colors.
+    - `GREEN_RED`: Negative values use greener colors, positive values use
+        redder colors. Good for heatmap data, especially data that can be
+        both positive and negative, where you want to indicate that positive
+        values are "bad" while negative values are "good".
+    - `RED_GREEN`: Negative values use redder colors, positive values use
+        greener colors. Good for heatmap data, especially data that can be
+        both positive and negative, where you want to indicate that positive
+        values are "good" while negative values are "bad".
+    """
+
+    BLUE_RED = 0
+    RED_BLUE = 1
+    GREEN_RED = 2
+    RED_GREEN = 3
+
+
 class TextHeatmap(Visualization):
     """
     A heatmap for a chunk of text where each individual unit
@@ -284,6 +312,7 @@ class TextHeatmap(Visualization):
         units: list[Unit],
         min_value: Optional[float] = None,
         max_value: Optional[float] = None,
+        color_scheme: HeatmapColorScheme = HeatmapColorScheme.BLUE_RED,
     ):
         """
         Create a new `TextHeatmap` for a provided list of `Unit`s.
@@ -300,6 +329,10 @@ class TextHeatmap(Visualization):
                 will be used for the colouring or `None` to disable and
                 automatically use the maximum weight of the units.
                 Default is `None`.
+            color_scheme (HeatmapColorScheme): The `HeatmapColorScheme`
+                that should be used for coloring units. Default is
+                `BLUE_RED`, using blue for negative values and red for
+                positive values.
         """
 
         super().__init__()
@@ -325,6 +358,7 @@ class TextHeatmap(Visualization):
 
         self.__max_weight = max_weight
         self.__min_weight = min_weight
+        self.__color_scheme__ = color_scheme
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
@@ -349,6 +383,7 @@ class TextHeatmap(Visualization):
             units_str,
             self.__min_weight,
             self.__max_weight,
+            self.__color_scheme__,
         )
         return js
 
