@@ -38,9 +38,6 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
     const POSITIVE_PALETTE = [NEUTRAL_VALUE, HOT_VALUE];
     const NEGATIVE_PALETTE = [COLD_VALUE, NEUTRAL_VALUE];
 
-    var chunkData;
-    var chunkSize;
-    var chunks;
     var palette;
 
     if (minWeight < 0.0 && maxWeight > 0.0) {
@@ -57,26 +54,20 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
 
     const UNIT_SIZES = calculateCanvasSize(CTX, HEATMAP_CANVAS, units, X_INIT, Y_INIT,
         LARGE_FONT, MARGIN, SPACING, BOTTOM_SPACE);
+    const RECT_POSITIONS = UNIT_SIZES.rectPositions;
 
     CTX.clearRect(0, 0, HEATMAP_CANVAS.width, HEATMAP_CANVAS.height);
 
-    chunkData = drawUnits(
+    drawUnits(
         CTX,
-        X_INIT,
-        Y_INIT,
         maxWeight,
         minWeight,
-        units,
         UNIT_SIZES,
-        SPACING,
-        HEATMAP_CANVAS,
         MARGIN,
         LARGE_FONT,
         FONT_COLOR,
         palette
     );
-    chunks = chunkData[0];
-    chunkSize = chunkData[1];
 
     drawKey(
         HEATMAP_CANVAS,
@@ -93,37 +84,23 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
         const mouseX = event.clientX - RECT.left;
         const mouseY = event.clientY - RECT.top;
 
-        // To reduce redundant searching of the unit locations,
-        // a chunking-based approach is used. Find the "chunk"
-        // that the cursor is in based on its y location. A
-        // "chunk" is essentially a line of units. From this,
-        // search the narrowed down units to find the one that
-        // the cursor is currenty hovering over.
-        const chunkLocation = Math.floor(mouseY / chunkSize);
-        const chunk = chunks.get(chunkLocation)
-
         // Mouse movements means that hover box should move accordingly
         // and appear/reappear if the cursor is now hovering/no longer
         // hovering over a unit.
         drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme);
 
-        // Not hovering over anything
-        if (chunk == undefined) {
-            return;
-        }
-
         var match;
 
-        // Search the units in this chunk for the one that is being
-        // hovered over.
-        for (const candidateUnit of chunk) {
-            if (mouseX >= candidateUnit.x_start && mouseX <= candidateUnit.x_end) {
-                match = candidateUnit;
+        // TODO: Potentially re-introduce chunk-based approach
+        for (const RECT_POSITION of RECT_POSITIONS) {
+            if (mouseX >= RECT_POSITION.x && mouseX <= RECT_POSITION.x + RECT_POSITION.width &&
+                    mouseY >= RECT_POSITION.y - UNIT_SIZES.height && mouseY <= RECT_POSITION.y) {
+                match = RECT_POSITION.unit;
                 break;
             }
         }
 
-        // None of the units in this chunk are being hovered over (might be
+        // None of the units are being hovered over (might be
         // between units)
         if (match == undefined) {
             return;
@@ -136,8 +113,9 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
                 12, CTX);
         }
     };
+}
 
-    /**
+/**
      * Performs calculations to scale the canvas appropriately to fit
      * all the text inside (if needed). Should be run before actually
      * drawing the visualization since scaling the canvas as necessary
@@ -157,16 +135,23 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
      * @returns A map that maps each unit to its calculated size so that this
      *      can be cached and used later.
      */
-    function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spacing, bottomSpace) {
-        var widthSum = xInit;
-        var heightSum = yInit;
-        var unitSizes = new Map();
+function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spacing, bottomSpace) {
+    var widthSum = xInit;
+    var heightSum = yInit;
+    var lastRectStart = xInit;
+    var rectPositions = [];
+    var wordPositions = [];
 
-        for (const unit of units) {
-            ctx.font = font;
+    for (const unit of units) {
+        const WORDS = unit.text.split(" ");
+        var height = undefined;
+        var lineWidth = 0;
 
+        ctx.font = font;
+
+        for (const WORD of WORDS) {
             // Calculate (without drawing) the size of the unit
-            const measurements = ctx.measureText(unit.text);
+            const measurements = ctx.measureText(WORD);
             const ascent = measurements.fontBoundingBoxAscent;
             const descent = measurements.fontBoundingBoxDescent;
             const font_width = measurements.width;
@@ -174,155 +159,159 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
             const adjusted_font_width = margin * 2 + font_width;
             const adjusted_font_height = margin * 2 + font_height;
 
-            // Cache these calculations to prevent redundant
-            // re-calculations of the displayed units when
-            // they are actually being drawn.
-            unitSizes.set(unit.text, [adjusted_font_width, adjusted_font_height]);
-            widthSum += adjusted_font_width + spacing;
-
-            if (widthSum + adjusted_font_width > canvas.width) {
+            if (widthSum + adjusted_font_width > canvas.width && WORDS.length != 1) {
+                rectPositions.push({
+                    unit: unit,
+                    x: lastRectStart,
+                    y: heightSum,
+                    width: lineWidth - spacing,
+                    weight: unit.weight,
+                });
                 widthSum = spacing;
+                lastRectStart = widthSum;
+                lineWidth = 0;
                 heightSum += adjusted_font_height + spacing;
             }
+
+            wordPositions.push({
+                x: widthSum,
+                y: heightSum,
+                word: WORD
+            });
+
+            // Add this to the unit object so that it can be
+            // used for hover/click detection later.
+            widthSum += adjusted_font_width + spacing;
+            lineWidth += adjusted_font_width + spacing;
 
             if (heightSum > canvas.height - bottomSpace) {
                 // Units are going out of bounds- resize the canvas
                 canvas.height = heightSum + bottomSpace;
+                ctx.font = font;
+            }
+
+            if (height == undefined) {
+                height = adjusted_font_height;
             }
         }
 
-        return unitSizes;
+        rectPositions.push({
+            unit: unit,
+            x: lastRectStart,
+            y: heightSum,
+            width: lineWidth - spacing,
+            weight: unit.weight,
+        });
+        lastRectStart = widthSum;
     }
 
-    /**
-     * Draw the units provided by the code generated by the
-     * Python file that reads this JS file. Each unit is shown
-     * as a colored box based on its weight that contains the
-     * unit's text.
-     * 
-     * @param {Object} ctx The context of the heatmap canvas.
-     * @param {number} xInit The starting x position.
-     * @param {number} yInit The starting y position.
-     * @param {number} maxWeight The maximum weight out of all the units.
-     * @param {number} minWeight The minimum weight out of all the units.
-     * @param {Object} units The unit objects that should be drawn.
-     * @param {Map} unitSizes A map containing the size of each unit.
-     * @param {number} spacing The spacing between each unit.
-     * @param {Object} canvas The heatmap canvas.
-     * @param {number} margin The size of the margin within each unit rect.
-     * @param {string} font The font that should be used for each unit.
-     * @param {string} fontColor The color that should be used for rendering
-     *      the fonts.
-     * @param {Array} palette The palette that should be used for colouring.
-     * @returns A list where the first element is a map that maps each chunk
-     *      ID to the units in that chunk for use by the mouse callback and the
-     *      second element is the size of each chunk.
-     */
-    function drawUnits(ctx, xInit, yInit, maxWeight, minWeight, units, unitSizes, spacing, canvas, margin, font, fontColor, palette) {
-        var x = xInit;
-        var y = yInit;
-        var chunkSize;
-        var chunks = new Map();
-        const HEIGHT_ADJUST = 20;
+    // Cache these calculations to prevent redundant
+    // re-calculations of the displayed units when
+    // they are actually being drawn.
+    return {
+        rectPositions: rectPositions,
+        wordPositions: wordPositions,
+        height: height
+    };
+}
 
-        for (const unit of units) {
-            const sizes = unitSizes.get(unit.text);
-            const font_width = sizes[0];
-            const font_height = sizes[1];
+/**
+ * Draw the units provided by the code generated by the
+ * Python file that reads this JS file. Each unit is shown
+ * as a colored box based on its weight that contains the
+ * unit's text.
+ * 
+ * @param {Object} ctx The context of the heatmap canvas.
+ * @param {number} maxWeight The maximum weight out of all the units.
+ * @param {number} minWeight The minimum weight out of all the units.
+ * @param {Map} unitSizes A map containing the size of each unit.
+ * @param {number} margin The size of the margin within each unit rect.
+ * @param {string} font The font that should be used for each unit.
+ * @param {string} fontColor The color that should be used for rendering
+ *      the fonts.
+ * @param {Array} palette The palette that should be used for colouring.
+ */
+function drawUnits(ctx, maxWeight, minWeight, unitSizes, margin, font, fontColor, palette) {
+    const HEIGHT_ADJUST = 20;
+    const RECT_POSITIONS = unitSizes.rectPositions;
+    const WORD_POSITIONS = unitSizes.wordPositions;
+    const HEIGHT = unitSizes.height;
 
-            if (x + font_width + spacing > canvas.width) {
-                x = xInit;
-                y += font_height + spacing;
-            }
+    for (const RECT_POSITION of RECT_POSITIONS) {
+        const X = RECT_POSITION.x;
+        const Y = RECT_POSITION.y;
+        const WIDTH = RECT_POSITION.width;
+        const WEIGHT = RECT_POSITION.weight;
 
-            // Calculate chunk size if it hasn't been calculated
-            // already
-            if (chunkSize == undefined) {
-                chunkSize = font_height + margin * 2;
-            }
+        ctx.font = font;
+        ctx.fillStyle = calculateRgb(WEIGHT, maxWeight, minWeight, palette);
 
-            ctx.font = font;
-            ctx.fillStyle = calculateRgb(unit.weight, maxWeight, minWeight, palette);
-
-            // Rounded rectangle
-            ctx.beginPath();
-            ctx.roundRect(x - margin, y + margin, font_width,
-                -(font_height - HEIGHT_ADJUST), 100, 20);
-            ctx.fill();
-
-            ctx.fillStyle = fontColor;
-            ctx.fillText(unit.text, x, y);
-
-            // Add this to the unit object so that it can be
-            // used for hover/click detection later.
-            unit.x_start = x - margin;
-            unit.x_end = x + font_width + margin;
-
-            // Find the chunk index (the line number that this
-            // unit is displayed on) so that it can be stored
-            // there for hover/click detection later.
-            var chunk_location = Math.floor(y / chunkSize);
-
-            if (chunks.get(chunk_location) == undefined) {
-                chunks.set(chunk_location, []);
-            }
-
-            chunks.get(chunk_location).push(unit);
-
-            x += font_width + spacing;
-        }
-
-        return [chunks, chunkSize];
+        // Rounded rectangle
+        ctx.beginPath();
+        ctx.roundRect(X - margin, Y + margin,
+            WIDTH,
+            HEIGHT_ADJUST - HEIGHT,
+            100);
+        ctx.fill();
     }
 
-    /**
-     * Draw the key for the bottom of the visualization. This
-     * involves a bar with a gradient providing a reference
-     * to the user about the color of lower values vs the color
-     * of higher values as well as labels to show what the
-     * maximum and minimum unit values are.
-     * 
-     * @param {Object} canvas The heatmap canvas.
-     * @param {Object} ctx The heatmap canvas' context.
-     * @param {number} bottomSpace The space between the bottom of the
-     *      canvas and the last row of units. Any units pass this will
-     *      expand the canvas.
-     * @param {number} spacing The spacing between each unit.
-     * @param {string} font The font that should be used for displaying
-     *      the units.
-     * @param {string} fontColor The color that should be used when
-     *      drawing the font.
-     * @param {list} palette The palette that should be used for colouring.
-     * @param {number} maxWeight The maximum weight out of all the units.
-     * @param {number} minWeight The minimum weight out of all the units.
-     */
-    function drawKey(canvas, ctx, bottomSpace, spacing, font, fontColor, palette, maxWeight, minWeight) {
-        const Y_POS = canvas.height - (bottomSpace / 2);
-        const GRADIENT = ctx.createLinearGradient(spacing, Y_POS,
-            canvas.width - spacing, Y_POS);
-        const KEY_GRADIENT_HEIGHT = 20;
-        const START_TEXT = `${minWeight} (Lowest value)`
-        const END_TEXT = `${maxWeight} (Highest value)`
-
-        // Beginning of the gradient - blue value
-        GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight, palette));
-        // Middle of the gradient - grey value
-        GRADIENT.addColorStop(0.5, calculateRgb((minWeight+maxWeight)/2, maxWeight, minWeight, palette));
-        // End of the gradient - red value
-        GRADIENT.addColorStop(1, calculateRgb(maxWeight, maxWeight, minWeight, palette));
-
-        ctx.fillStyle = GRADIENT;
-        ctx.fillRect(spacing, Y_POS, canvas.width - spacing * 2, KEY_GRADIENT_HEIGHT);
+    for (const WORD_POSITION of WORD_POSITIONS) {
+        const X = WORD_POSITION.x;
+        const Y = WORD_POSITION.y;
+        const WORD = WORD_POSITION.word;
 
         ctx.fillStyle = fontColor;
-        ctx.font = font;
-
-        // Measure the max weight to calculate how far in from the end of the canvas
-        // it should be.
-        const measurements = ctx.measureText(START_TEXT);
-
-        ctx.fillText(START_TEXT, spacing, Y_POS + KEY_GRADIENT_HEIGHT + spacing);
-        ctx.fillText(END_TEXT, canvas.width - spacing - measurements.width,
-            Y_POS + KEY_GRADIENT_HEIGHT + spacing);
+        ctx.fillText(WORD, X, Y);
     }
+}
+
+/**
+ * Draw the key for the bottom of the visualization. This
+ * involves a bar with a gradient providing a reference
+ * to the user about the color of lower values vs the color
+ * of higher values as well as labels to show what the
+ * maximum and minimum unit values are.
+ * 
+ * @param {Object} canvas The heatmap canvas.
+ * @param {Object} ctx The heatmap canvas' context.
+ * @param {number} bottomSpace The space between the bottom of the
+ *      canvas and the last row of units. Any units pass this will
+ *      expand the canvas.
+ * @param {number} spacing The spacing between each unit.
+ * @param {string} font The font that should be used for displaying
+ *      the units.
+ * @param {string} fontColor The color that should be used when
+ *      drawing the font.
+ * @param {list} palette The palette that should be used for colouring.
+ * @param {number} maxWeight The maximum weight out of all the units.
+ * @param {number} minWeight The minimum weight out of all the units.
+ */
+function drawKey(canvas, ctx, bottomSpace, spacing, font, fontColor, palette, maxWeight, minWeight) {
+    const Y_POS = canvas.height - (bottomSpace / 2);
+    const GRADIENT = ctx.createLinearGradient(spacing, Y_POS,
+        canvas.width - spacing, Y_POS);
+    const KEY_GRADIENT_HEIGHT = 20;
+    const START_TEXT = `${minWeight} (Lowest value)`
+    const END_TEXT = `${maxWeight} (Highest value)`
+
+    // Beginning of the gradient - blue value
+    GRADIENT.addColorStop(0, calculateRgb(minWeight, maxWeight, minWeight, palette));
+    // Middle of the gradient - grey value
+    GRADIENT.addColorStop(0.5, calculateRgb((minWeight+maxWeight)/2, maxWeight, minWeight, palette));
+    // End of the gradient - red value
+    GRADIENT.addColorStop(1, calculateRgb(maxWeight, maxWeight, minWeight, palette));
+
+    ctx.fillStyle = GRADIENT;
+    ctx.fillRect(spacing, Y_POS, canvas.width - spacing * 2, KEY_GRADIENT_HEIGHT);
+
+    ctx.fillStyle = fontColor;
+    ctx.font = font;
+
+    // Measure the max weight to calculate how far in from the end of the canvas
+    // it should be.
+    const measurements = ctx.measureText(START_TEXT);
+
+    ctx.fillText(START_TEXT, spacing, Y_POS + KEY_GRADIENT_HEIGHT + spacing);
+    ctx.fillText(END_TEXT, canvas.width - spacing - measurements.width,
+        Y_POS + KEY_GRADIENT_HEIGHT + spacing);
 }

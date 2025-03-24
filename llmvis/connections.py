@@ -2,6 +2,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import math
+import re
 import ollama
 import numpy as np
 from typing_extensions import Optional
@@ -119,6 +120,25 @@ class ImportanceMetric:
     SHAPLEY = "Shapley Value"
 
 
+class UnitType:
+    """
+    A type of unit. A "unit" is defined as a component of a prompt.
+    Available options:
+
+    - **TOKEN** - A token, representing a word or a smaller part of
+    a word determined by a tokenization algorithm.
+    - **WORD** - A word, defined as a sequence of letters surrounded
+    by whitespace.
+    - **SENTENCE** - A sentence, defined as a sequence of words
+    surrounded by punctuation that can terminate a sentence
+    (e.g. `.`, `!` or `?`).
+    """
+
+    TOKEN = 0
+    WORD = 1
+    SENTENCE = 2
+
+
 class ModelResponse:
     """
     Object to contain a response that a model can give,
@@ -173,11 +193,12 @@ class Connection(abc.ABC):
 
         # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
 
-    def word_importance_gen(
+    def unit_importance_gen(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
         importance_metric: str = ImportanceMetric.INVERSE_COSINE,
+        unit_type: int = UnitType.WORD,
         sampling_ratio: float = 0.0,
         use_perplexity_difference: bool = False,
         test_system_prompt: bool = False,
@@ -228,9 +249,25 @@ class Connection(abc.ABC):
         ]
         outputs = [responses[0].message]
 
-        # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
         test_prompt = prompt if not test_system_prompt else system_prompt
-        separated_prompt = test_prompt.split(" ")
+        separated_prompt = []
+
+        if unit_type == UnitType.TOKEN:
+            # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
+            raise RuntimeError("Token importance is currently not supported")
+        elif unit_type == UnitType.WORD:
+            # Nothing fancy needed for 'tokenizing' in terms of words, only splitting by spaces
+            separated_prompt = test_prompt.split(" ")
+        elif unit_type == UnitType.SENTENCE:
+            punctuation = "?.!"
+            # This regex expression adds empty strings by design,
+            # so filter them out.
+            separated_prompt = list(
+                filter(
+                    None, re.split(f"([^{punctuation}]*[{punctuation}]+)", test_prompt)
+                )
+            )
+
         combinator = Combinator(separated_prompt)
         requests = [test_prompt]
         missing_terms_strs = []
@@ -283,8 +320,12 @@ class Connection(abc.ABC):
             raise RuntimeError("Invalid similarity index used!")
 
         importance_units = []
-        full_prompt_perplexity = self.__perplexity__(
-            responses[0].generated_tokens_count, responses[0].prob_sum
+        full_prompt_perplexity = (
+            self.__perplexity__(
+                responses[0].generated_tokens_count, responses[0].prob_sum
+            )
+            if use_perplexity_difference
+            else 0.0
         )
         perplexity_difference_units = []
         table_contents = []

@@ -134,7 +134,7 @@ class VisualizationsScreen(QWidget):
         """
 
         if metric == "Generation Shapley":
-            vis = self.__conn.word_importance_gen(prompt)
+            vis = self.__conn.unit_importance_gen(prompt)
         elif metric == "Embedding Shapley":
             vis = self.__conn.word_importance_embed_shapley(prompt)
 
