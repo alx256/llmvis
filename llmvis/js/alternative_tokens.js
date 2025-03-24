@@ -30,7 +30,6 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     const PALETTE = [[176, 46, 52], [180, 157, 46], [48, 147, 38]];
     const FLEX_CONTAINER = CANVAS.closest(".llmvis-flex-container");
     const FLEX_CHILD_COUNT = FLEX_CONTAINER.querySelectorAll(":scope > .llmvis-flex-child").length;
-    const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
 
     var currentScale = 1.0;
     var offsetScale = 1.0;
@@ -59,6 +58,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         maxProb = DRAW_RESULT.maxProb;
 
         if (readjust_window) {
+            const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
             var newWidth = (FURTHEST_EXTENT > window.innerWidth) ? FURTHEST_EXTENT : window.innerWidth;
 
             if (CANVAS.width != newWidth) {
@@ -83,9 +83,9 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     already have resize events assigned to the window
     that we do not want to overwrite.
     */
-    if (!window.alternativeTokensVisualizationAdded) {
-        window.alternativeTokensVisualizationAdded = true;
-        window.addEventListener("resize", UPDATE);
+    if (!llmvisVisualizationResizeIds.has(canvasId)) {
+        llmvisVisualizationResizeIds.add(canvasId);
+        window.addEventListener("resize", function() { UPDATE(true); });
     }
 
     CANVAS.parentElement.onscroll = function() {

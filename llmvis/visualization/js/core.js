@@ -3,6 +3,12 @@
  */
 
 /**
+ * A set containing the IDs of different canvases
+ * that are resizeable.
+ */
+var llmvisVisualizationResizeIds = new Set();
+
+/**
  * Load the necessary fonts that are needed for visualizations.
  */
 async function loadFonts() {
