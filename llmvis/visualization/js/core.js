@@ -246,3 +246,27 @@ function niceStep(maxVal, tickCount) {
 
     return scaledFrac*POWED;
 }
+
+/**
+ * Enable a given canvas to be resized when the window is resized.
+ * Will try to fill the screen and adjust when there is a resizing.
+ * Accounts for comparisons too.
+ * @param {Object} canvas The canvas that should be resizable.
+ * @param {Function} redrawFunc The function that should redraw the
+ *      contents of the canvas when the resizing occurs.
+ */
+function enableResizing(canvas, redrawFunc) {
+    if (!llmvisVisualizationResizeIds.has(canvas.id)) {
+        const FLEX_CONTAINER = canvas.closest(".llmvis-flex-container");
+        const FLEX_CHILD_COUNT = FLEX_CONTAINER.querySelectorAll(":scope > .llmvis-flex-child").length;
+        const RESIZE_FUNC = function() {
+            const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
+            canvas.width = FLEX_CHILD_WIDTH;
+            redrawFunc();
+        }
+
+        window.addEventListener("resize", RESIZE_FUNC);
+        llmvisVisualizationResizeIds.add(canvas.id);
+        RESIZE_FUNC();
+    }
+}

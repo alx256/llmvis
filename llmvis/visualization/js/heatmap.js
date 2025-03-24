@@ -113,6 +113,10 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
                 12, CTX);
         }
     };
+
+    enableResizing(HEATMAP_CANVAS, function() {
+        drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme);
+    });
 }
 
 /**
