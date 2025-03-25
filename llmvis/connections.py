@@ -362,9 +362,11 @@ class Connection(abc.ABC):
                         [
                             (importance_metric, val),
                         ]
-                        + [("Generated Prompt", response.message)]
-                        if calculation == ImportanceCalculation.GENERATION
-                        else []
+                        + (
+                            [("Generated Prompt", response.message)]
+                            if calculation == ImportanceCalculation.GENERATION
+                            else []
+                        )
                     ),
                 )
             )
