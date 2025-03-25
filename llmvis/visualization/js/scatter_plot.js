@@ -26,23 +26,20 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     var minY = -1;
 
     for (plot of scatterPlotPlots) {
-        const X = plot[0];
-        const Y = plot[1];
-
-        if (maxX == -1 || X > maxX) {
-            maxX = X;
+        if (maxX == -1 || plot.x > maxX) {
+            maxX = plot.x;
         }
 
-        if (maxY == -1 || Y > maxY) {
-            maxY = Y;
+        if (maxY == -1 || plot.y > maxY) {
+            maxY = plot.y;
         }
 
-        if (minX == -1 || X < minX) {
-            minX = X;
+        if (minX == -1 || plot.x < minX) {
+            minX = plot.x;
         }
 
-        if (minY == -1 || Y < minY) {
-            minY = Y;
+        if (minY == -1 || plot.y < minY) {
+            minY = plot.y;
         }
     }
 
@@ -98,8 +95,8 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     // Precompute the transformed plots to use multiple times later
     for (const PLOT of scatterPlotPlots) {
         transformedPlots.push(
-            graphToScreen(SCATTER_PLOT_CANVAS, SCATTER_PLOT_AXIS_PADDING, PLOT[0],
-                PLOT[1], minX, minY, maxX, maxY
+            graphToScreen(SCATTER_PLOT_CANVAS, SCATTER_PLOT_AXIS_PADDING, PLOT.x,
+                PLOT.y, minX, minY, maxX, maxY
             )
         );
     }
@@ -174,15 +171,14 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
         for (var i = 0; i < transformedPlots.length; i++) {
             const TRANSFORMED_PLOT = transformedPlots[i];
             const ORIGINAL_PLOT = scatterPlotPlots[i];
-            const ORIGINAL_PLOT_X = ORIGINAL_PLOT[0];
-            const ORIGINAL_PLOT_Y = ORIGINAL_PLOT[1];
 
             if (mouseX >= TRANSFORMED_PLOT.x - TOOLTIP_SHOW_DISTANCE &&
                     mouseX <= TRANSFORMED_PLOT.x + TOOLTIP_SHOW_DISTANCE &&
                     mouseY >= TRANSFORMED_PLOT.y - TOOLTIP_SHOW_DISTANCE &&
                     mouseY <= TRANSFORMED_PLOT.y + TOOLTIP_SHOW_DISTANCE) {
-                drawTooltip([[{text: `X: ${ORIGINAL_PLOT_X}`, color: "black"},
-                    {text: `Y: ${ORIGINAL_PLOT_Y}`, color: "black"}]],
+                drawTooltip([[{text: `X: ${ORIGINAL_PLOT.x}`, color: "black"},
+                    {text: `Y: ${ORIGINAL_PLOT.y}`, color: "black"}],
+                    [{text: (ORIGINAL_PLOT.detail != undefined) ? ORIGINAL_PLOT.detail : "", color: "black"}]],
                     mouseX, mouseY, 200, 200, 15, SCATTER_PLOT_CTX);
             }
         }

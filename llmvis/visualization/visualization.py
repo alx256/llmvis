@@ -4,6 +4,7 @@ from numpy.typing import ArrayLike
 from typing import Optional
 import uuid
 
+from llmvis.core import js_tools
 from llmvis.core.js_tools import escape_all, list_as_js
 from llmvis.core.linked_files import relative_file_read
 
@@ -564,14 +565,15 @@ class ScatterPlot(Visualization):
     an array-like object of 2D points in 2D space.
     """
 
-    def __init__(self, plots: ArrayLike):
+    def __init__(self, plots: list[Point]):
         """
         Create a new `ScatterPlot` `Visualization` from a
-        2D array of plots. The plots should be an array-like
-        structure in which each element is an array-like
-        structure containing 2 elements representing a point
-        in 2D space with the first element being the x
-        co-ordinate and the second being the y co-ordinate.
+        2D array of plots.
+
+        Args:
+            plots (list[Point]): A list of `Point` objects
+                representing the different 2D points that
+                this scatter plot should show.
         """
 
         super().__init__()
@@ -586,7 +588,9 @@ class ScatterPlot(Visualization):
 
     def get_js(self):
         return self.call_function(
-            "drawScatterPlot", f'"{self.get_uuid()}"', self.__plots.tolist()
+            "drawScatterPlot",
+            f'"{self.get_uuid()}"',
+            js_tools.list_as_js(self.__plots, do_conversion=True),
         )
 
     def get_dependencies(self):

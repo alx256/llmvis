@@ -464,7 +464,26 @@ class Connection(abc.ABC):
         text_heatmap.set_comments(self.__get_info__())
         tag_cloud = TagCloud(units)
         tag_cloud.set_comments(self.__get_info__())
-        scatter_plot = ScatterPlot(reduced)
+        scatter_plot = ScatterPlot(
+            [
+                Point(
+                    reduced[i][0],
+                    reduced[i][1],
+                    "Missing terms: "
+                    + (
+                        "No missing terms"
+                        if i == 0
+                        else " ".join(
+                            [
+                                separated_prompt[j]
+                                for j in combinator.get_missing_terms(i - 1)
+                            ]
+                        )
+                    ),
+                )
+                for i in range(len(reduced))
+            ]
+        )
         scatter_plot.set_comments(self.__get_info__())
 
         return Visualizer([text_heatmap, tag_cloud, scatter_plot])
