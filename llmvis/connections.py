@@ -139,6 +139,20 @@ class UnitType:
     SENTENCE = 2
 
 
+class ImportanceCalculation:
+    """
+    An approach for calculating importance. Available options:
+
+    - **GENERATION** - Importance should be calculated by
+        generating responses and calculating the TF-IDF vector.
+    - **EMBEDDING** - Importance should be calculated by
+        generating the embedding vector.
+    """
+
+    GENERATION = 0
+    EMBEDDING = 1
+
+
 class ModelResponse:
     """
     Object to contain a response that a model can give,
@@ -193,12 +207,13 @@ class Connection(abc.ABC):
 
         # TODO: Implement when this pull request is approved: https://github.com/ollama/ollama/pull/6586
 
-    def unit_importance_gen(
+    def unit_importance(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
-        importance_metric: str = ImportanceMetric.INVERSE_COSINE,
-        unit_type: int = UnitType.WORD,
+        importance_metric: ImportanceMetric = ImportanceMetric.INVERSE_COSINE,
+        calculation: ImportanceCalculation = ImportanceCalculation.GENERATION,
+        unit_type: UnitType = UnitType.WORD,
         sampling_ratio: float = 0.0,
         use_perplexity_difference: bool = False,
         test_system_prompt: bool = False,
@@ -214,6 +229,14 @@ class Connection(abc.ABC):
             system_prompt (Optional[str]): The system prompt that
                 should be used in generating responses. To not use
                 a system prompt use `None`. Default is `None`.
+            importance_metric (ImportanceMetric): The `ImportanceMetric`
+                that should be used to determine importance. Default is
+                `ImportanceMetric.INVERSE_COSINE`.
+            calculation (ImportanceCalculation): The `ImportanceCalculation`
+                that should be used for calculating vectors for similarities.
+                Default is `ImportanceCalculation.GENERATION`.
+            unit_type (UnitType): The `UnitType` that should have the
+                importance calculated for. Default is `UnitType.WORD`.
             sampling_ratio (float): How many random samples should
                 be carried out (0.0 for none)
             use_perplexity_difference (bool): Set this to `True` to
@@ -238,16 +261,13 @@ class Connection(abc.ABC):
                 "Cannot test the system prompt if no system prompt is provided!"
             )
 
-        # Start responses
-        responses = [
-            self.__make_request__(
-                prompt,
-                system_prompt,
-                temperature=0.0,
-                alternative_tokens=use_perplexity_difference,
+        if (
+            use_perplexity_difference
+            and calculation != ImportanceCalculation.GENERATION
+        ):
+            raise RuntimeError(
+                "Perplexity difference is only support with the generation calculation"
             )
-        ]
-        outputs = [responses[0].message]
 
         test_prompt = prompt if not test_system_prompt else system_prompt
         separated_prompt = []
@@ -269,40 +289,37 @@ class Connection(abc.ABC):
             )
 
         combinator = Combinator(separated_prompt)
-        requests = [test_prompt]
+        combinations = combinator.get_combinations(r=sampling_ratio)
+        requests = [test_prompt] + [
+            self.__flatten_words(combination, delimiter=" ")
+            for combination in combinations
+        ]
         missing_terms_strs = []
+        vectors = []
 
-        for i, combination in enumerate(combinator.get_combinations(r=sampling_ratio)):
-            request = self.__flatten_words(combination, delimiter=" ")
-            response = self.__make_request__(
-                request,
-                system_prompt,
-                temperature=0.0,
-                alternative_tokens=use_perplexity_difference,
+        if calculation == ImportanceCalculation.GENERATION:
+            vectors, responses, outputs = self.__batch_generate__(
+                system_prompt, use_perplexity_difference, requests
             )
+        elif calculation == ImportanceCalculation.EMBEDDING:
+            vectors = np.array(self.__calculate_embeddings__(requests))
+            responses = ["N/A"] * len(requests)
+            outputs = vectors
 
-            responses.append(response)
-            outputs.append(response.message)
-
-            combination_local = combination.copy()
-            missing_term_indices = combinator.get_missing_terms(i)
+        for i in range(len(requests[1:])):
             missing_terms_strs.append("")
+            missing_term_indices = combinator.get_missing_terms(i)
 
-            for i, index in enumerate(missing_term_indices):
+            for index in missing_term_indices:
                 missing_term = separated_prompt[index]
-                combination_local.insert(index, "_" * len(missing_term))
+                combinations[i].insert(index, "_" * len(missing_term)), " "
+                requests[i + 1] = self.__flatten_words(combinations[i], delimiter=" ")
+
                 missing_terms_strs[-1] += missing_term
 
                 if i < len(missing_term_indices) - 1:
                     missing_terms_strs[-1] += ", "
 
-            formatted_request = self.__flatten_words(combination_local, delimiter=" ")
-
-            requests.append(formatted_request)
-
-        # Calculate TF-IDF representation of each response
-        vectorizer = TfidfVectorizer()
-        vectors = vectorizer.fit_transform(outputs).toarray()
         # Use TF-IDF representation to calculate similarity between each
         # response and the full response
         similarities = cosine_similarity(
@@ -341,10 +358,14 @@ class Connection(abc.ABC):
                 Unit(
                     text,
                     val,
-                    [
-                        (importance_metric, val),
-                        ("Generated Prompt", response.message),
-                    ],
+                    (
+                        [
+                            (importance_metric, val),
+                        ]
+                        + [("Generated Prompt", response.message)]
+                        if calculation == ImportanceCalculation.GENERATION
+                        else []
+                    ),
                 )
             )
 
@@ -414,79 +435,37 @@ class Connection(abc.ABC):
             perplexity_difference_heatmap.set_comments(self.__get_info__())
             visualizations.append(perplexity_difference_heatmap)
 
-        return Visualizer(visualizations)
+        if calculation == ImportanceCalculation.EMBEDDING:
+            # Use PCA to reduce dimensionality to suppress noise and speed up
+            # computations (per scikit-learn recommendations
+            # https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
+            pca = PCA(n_components=2)
+            reduced = pca.fit_transform(vectors)
 
-    def word_importance_embed_shapley(self, prompt: str) -> Visualizer:
-        """
-        Calculate the importance of each word in a given prompt
-        using embeddings to approximate the importance of each
-        word in the sentence and get a `Visualizer` visualizing
-        this.
-
-        Args:
-            prompt (str): The prompt that should have its word
-                importance calculated
-
-        Returns:
-            A `Visualizer` showing a text heatmap and tag cloud
-            for the importance of each word.
-        """
-
-        separated_prompt = prompt.split(" ")
-        combinator = Combinator(separated_prompt)
-
-        requests = [prompt] + [
-            self.__flatten_words(combination, delimiter=" ")
-            for combination in combinator.get_combinations(r=0.0)
-        ]
-
-        embeddings = np.array(self.__calculate_embeddings__(requests))
-        similarities = cosine_similarity(
-            embeddings[0].reshape(1, -1), embeddings[1:]
-        ).flatten()
-        shapley_vals = combinator.get_shapley_values(similarities)
-        units = [
-            Unit(
-                separated_prompt[i],
-                shapley_vals[i],
-                [("Shapley Value", shapley_vals[i]), ("Embedding", embeddings[i + 1])],
+            scatter_plot = ScatterPlot(
+                [
+                    Point(
+                        reduced[i][0],
+                        reduced[i][1],
+                        "Missing terms: "
+                        + (
+                            "No missing terms"
+                            if i == 0
+                            else " ".join(
+                                [
+                                    separated_prompt[j]
+                                    for j in combinator.get_missing_terms(i - 1)
+                                ]
+                            )
+                        ),
+                    )
+                    for i in range(len(reduced))
+                ]
             )
-            for i in range(len(separated_prompt))
-        ]
+            scatter_plot.set_comments(self.__get_info__())
+            visualizations.append(scatter_plot)
 
-        # Use PCA to reduce dimensionality to suppress noise and speed up
-        # computations (per scikit-learn recommendations
-        # https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
-        pca = PCA(n_components=2)
-        reduced = pca.fit_transform(embeddings)
-
-        text_heatmap = TextHeatmap(units)
-        text_heatmap.set_comments(self.__get_info__())
-        tag_cloud = TagCloud(units)
-        tag_cloud.set_comments(self.__get_info__())
-        scatter_plot = ScatterPlot(
-            [
-                Point(
-                    reduced[i][0],
-                    reduced[i][1],
-                    "Missing terms: "
-                    + (
-                        "No missing terms"
-                        if i == 0
-                        else " ".join(
-                            [
-                                separated_prompt[j]
-                                for j in combinator.get_missing_terms(i - 1)
-                            ]
-                        )
-                    ),
-                )
-                for i in range(len(reduced))
-            ]
-        )
-        scatter_plot.set_comments(self.__get_info__())
-
-        return Visualizer([text_heatmap, tag_cloud, scatter_plot])
+        return Visualizer(visualizations)
 
     def k_temperature_sampling(
         self,
@@ -831,6 +810,49 @@ class Connection(abc.ABC):
             A real-valued number representing the perplexity of the response.
         """
         return math.exp(-(1 / N) * prob_sum)
+
+    def __batch_generate__(
+        self,
+        system_prompt: str,
+        alternative_tokens: bool,
+        requests: list[str],
+    ) -> list[list[float]]:
+        """
+        Calculate the TF-IDF vectors for a batch of requests.
+
+        Args:
+            system_prompt (str): The system prompt that should be
+                used for making requests.
+            alternative_tokens (bool): Set this to `True` to get
+                alternative tokens data (if supported).
+            requests (list[str]): A list of strings containing the
+                requests that should be made.
+
+        Returns:
+            A 2D list where each element is a list of floats
+            representing the TF-IDF vector for each request.
+        """
+
+        responses = []
+        outputs = []
+
+        for i, combination in enumerate(requests):
+            request = self.__flatten_words(combination, delimiter=" ")
+            response = self.__make_request__(
+                request,
+                system_prompt,
+                temperature=0.0,
+                alternative_tokens=alternative_tokens,
+            )
+
+            responses.append(response)
+            outputs.append(response.message)
+
+        # Calculate TF-IDF representation of each response
+        vectorizer = TfidfVectorizer()
+        vectors = vectorizer.fit_transform(outputs).toarray()
+
+        return vectors, responses, outputs
 
     @abc.abstractmethod
     def __get_info__(self):
