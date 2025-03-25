@@ -11,10 +11,13 @@
 function drawScatterPlot(canvasId, scatterPlotPlots) {
     const SCATTER_PLOT_CANVAS = document.getElementById(canvasId);
     const SCATTER_PLOT_CTX = SCATTER_PLOT_CANVAS.getContext('2d');
-
+    const RECT = SCATTER_PLOT_CANVAS.getBoundingClientRect();
     const SCATTER_PLOT_STROKE_COLOR = 'rgb(222, 222, 222)';
     const SCATTER_PLOT_PLOT_RADIUS = 7;
     const SCATTER_PLOT_AXIS_PADDING = 44;
+    const TOOLTIP_SHOW_DISTANCE = SCATTER_PLOT_PLOT_RADIUS + 5;
+
+    SCATTER_PLOT_CTX.clearRect(0, 0, SCATTER_PLOT_CANVAS.width, SCATTER_PLOT_CANVAS.height);
 
     // Find maximum x and y values
     var maxX = -1;
@@ -42,6 +45,8 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
             minY = Y;
         }
     }
+
+    var transformedPlots = [];
 
     const SCATTER_PLOT_STEP_COUNT = 20;
     const SCATTER_PLOT_MARKING_LENGTH = 5;
@@ -87,8 +92,17 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     var xTickPos = minX;
     var yTickPos = minY;
 
-    SCATTER_PLOT_CTX.fontStyle = "15px DidactGothic";
+    SCATTER_PLOT_CTX.font = "15px DidactGothic";
     SCATTER_PLOT_CTX.fillStyle = SCATTER_PLOT_STROKE_COLOR;
+
+    // Precompute the transformed plots to use multiple times later
+    for (const PLOT of scatterPlotPlots) {
+        transformedPlots.push(
+            graphToScreen(SCATTER_PLOT_CANVAS, SCATTER_PLOT_AXIS_PADDING, PLOT[0],
+                PLOT[1], minX, minY, maxX, maxY
+            )
+        );
+    }
 
     while (xTickPos <= maxX || yTickPos <= maxY) {
         // Fix potential floating point problems
@@ -138,8 +152,7 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     SCATTER_PLOT_CTX.beginPath();
     for (var i = 0; i < scatterPlotPlots.length; i++) {
         const PLOT = scatterPlotPlots[i];
-        const TRANSFORMED = graphToScreen(SCATTER_PLOT_CANVAS, SCATTER_PLOT_AXIS_PADDING,
-            PLOT[0], PLOT[1], minX, minY, maxX, maxY);
+        const TRANSFORMED = transformedPlots[i];
         const RGB = calculateRgb(1, 2, 0);
 
         SCATTER_PLOT_CTX.beginPath();
@@ -150,6 +163,29 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
             SCATTER_PLOT_PLOT_RADIUS, 0, 2 * Math.PI);
         SCATTER_PLOT_CTX.fill();
         SCATTER_PLOT_CTX.stroke();
+    }
+
+    SCATTER_PLOT_CANVAS.onmousemove = function(event) {
+        const mouseX = event.clientX - RECT.left;
+        const mouseY = event.clientY - RECT.top;
+
+        drawScatterPlot(canvasId, scatterPlotPlots);
+
+        for (var i = 0; i < transformedPlots.length; i++) {
+            const TRANSFORMED_PLOT = transformedPlots[i];
+            const ORIGINAL_PLOT = scatterPlotPlots[i];
+            const ORIGINAL_PLOT_X = ORIGINAL_PLOT[0];
+            const ORIGINAL_PLOT_Y = ORIGINAL_PLOT[1];
+
+            if (mouseX >= TRANSFORMED_PLOT.x - TOOLTIP_SHOW_DISTANCE &&
+                    mouseX <= TRANSFORMED_PLOT.x + TOOLTIP_SHOW_DISTANCE &&
+                    mouseY >= TRANSFORMED_PLOT.y - TOOLTIP_SHOW_DISTANCE &&
+                    mouseY <= TRANSFORMED_PLOT.y + TOOLTIP_SHOW_DISTANCE) {
+                drawTooltip([[{text: `X: ${ORIGINAL_PLOT_X}`, color: "black"},
+                    {text: `Y: ${ORIGINAL_PLOT_Y}`, color: "black"}]],
+                    mouseX, mouseY, 200, 200, 15, SCATTER_PLOT_CTX);
+            }
+        }
     }
 
     enableResizing(SCATTER_PLOT_CANVAS, function() {
