@@ -200,4 +200,8 @@ function drawLineChart(canvasId, lineChartValues) {
     }
 
     LINE_CHART_CTX.stroke();
+
+    enableResizing(LINE_CHART_CANVAS, function() {
+        drawLineChart(canvasId, lineChartValues);
+    });
 }

@@ -33,6 +33,10 @@ function drawRadarChart(canvasId, values) {
     drawPolygon(CTX, CANVAS, Array(values.length).fill(["", 1]), STROKE_COLOR, 1, 0, false);
     // Data polygon
     drawPolygon(CTX, CANVAS, values, 'rgb(117, 115, 138)', maxVal, minVal, true);
+
+    enableResizing(CANVAS, function() {
+        drawRadarChart(canvasId, values);
+    });
 }
 
 /**
@@ -50,7 +54,9 @@ function drawRadarChart(canvasId, values) {
  */
 function drawPolygon(ctx, canvas, values, color, maxVal, minVal, fill) {
     const PADDING = 60;
-    const RADIUS = canvas.width/2 - PADDING;
+    // Use the smaller of the width or the height to ensure that it
+    // remains onscreen.
+    const RADIUS = Math.min(canvas.width, canvas.height)/2 - PADDING;
     const LABEL_DISTANCE = 8;
     const ROTATE_ANGLE = (2*Math.PI)/values.length;
 

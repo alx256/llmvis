@@ -184,6 +184,10 @@ function drawAiClassifier(canvasId, classifiedData, points) {
 
         yPosition += Y_AXIS_SEGMENT_HEIGHT;
     }
+
+    enableResizing(CLASSIFIER_CANVAS, function() {
+        drawAiClassifier(canvasId, classifiedData, points);
+    });
 }
 
 /**

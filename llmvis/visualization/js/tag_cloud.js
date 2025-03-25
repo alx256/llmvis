@@ -89,6 +89,10 @@ function drawTagCloud(canvasId, units) {
             yEnd: y
         });
     }
+
+    enableResizing(TAG_CLOUD_CANVAS, function() {
+        drawTagCloud(canvasId, units);
+    });
 }
 
 /**

@@ -127,7 +127,7 @@ class Visualizer:
         rgb = f"rgb(23, 21, 33)"
 
         html = "<!DOCTYPE html>"
-        html += "<html>"
+        html += '<html style="height:100%;">'
         html += "<head>"
         html += "<title>"
         html += "LLMVis"
@@ -135,8 +135,8 @@ class Visualizer:
         html += prelude
         html += style
         html += "</head>"
-        html += f'<body style="background-color: {rgb}; margin: 0px;">'
-        html += '<div id="llmvis-tabs-container">'
+        html += f'<body style="height:100%;background-color: {rgb}; margin: 0px;display:flex;flex-direction:column;">'
+        html += '<div id="llmvis-tabs-container" style="flex:1;">'
         html += '<div class="llmvis-tabs">'
         for i, name in enumerate(self.__visualizations.keys()):
             html += f'<button class="llmvis-tab" onclick="openVisualization({i})">'
@@ -147,7 +147,7 @@ class Visualizer:
         html += "</div>"
         html += "</div>"
         for name in self.__visualizations.keys():
-            html += '<div class="llmvis-visualization-content">'
+            html += '<div class="llmvis-visualization-content" style="flex:9;">'
             html += '<div class="llmvis-flex-container" style="display:flex;flex-direction:row;overflow:hidden;">'
             for v in self.__visualizations[name]:
                 html += '<div class="llmvis-flex-child" style="flex:1;overflow:auto;max-width:100%;">'

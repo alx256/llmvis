@@ -259,9 +259,26 @@ function enableResizing(canvas, redrawFunc) {
     if (!llmvisVisualizationResizeIds.has(canvas.id)) {
         const FLEX_CONTAINER = canvas.closest(".llmvis-flex-container");
         const FLEX_CHILD_COUNT = FLEX_CONTAINER.querySelectorAll(":scope > .llmvis-flex-child").length;
+        const TABS_CONTAINER = document.getElementById("llmvis-tabs-container");
+        const VIS_CONTENT = document.getElementsByClassName("llmvis-visualization-content")[0];
+        const TOTAL_FLEX = parseInt(TABS_CONTAINER.style.flexGrow) +
+            parseInt(VIS_CONTENT.style.flexGrow);
+
         const RESIZE_FUNC = function() {
             const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
+            const FLEX_HEIGHT = window.innerHeight*(parseInt(VIS_CONTENT.style.flexGrow) / TOTAL_FLEX);
+            const OTHER_CHILDREN = [...canvas.parentNode.children].filter(child => child !== canvas);
+
+            var subtractors = 0;
+
+            // Calculate other HTML elements (such as interactive elements)
+            // that we also need to account for.
+            for (const CHILD of OTHER_CHILDREN) {
+                subtractors += CHILD.clientHeight;
+            }
+
             canvas.width = FLEX_CHILD_WIDTH;
+            canvas.height = FLEX_HEIGHT - subtractors;
             redrawFunc();
         }
 

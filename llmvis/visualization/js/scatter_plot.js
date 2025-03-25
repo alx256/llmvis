@@ -53,6 +53,10 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     }
 
     SCATTER_PLOT_CTX.stroke();
+
+    enableResizing(SCATTER_PLOT_CANVAS, function() {
+        drawScatterPlot(canvasId, scatterPlotPlots);
+    });
 }
 
 function conciseString(num) {

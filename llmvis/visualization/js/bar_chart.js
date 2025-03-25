@@ -167,4 +167,8 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     BAR_CHART_CTX.restore();
 
     BAR_CHART_CTX.stroke();
+
+    enableResizing(BAR_CHART_CANVAS, function() {
+        drawBarChart(canvasId, barChartValues, xLabel, yLabel)
+    });
 }
