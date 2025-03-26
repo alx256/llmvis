@@ -268,7 +268,11 @@ class Visualization(abc.ABC):
         html = ""
 
         for comment in self.__comments__:
-            html += '<p class="llmvis-text">' + comment + "</p>"
+            html += (
+                '<div class="llmvis-text" style="padding:20px;height:2%;">'
+                + comment
+                + "</div>"
+            )
 
         return html
 

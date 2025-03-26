@@ -260,9 +260,14 @@ function enableResizing(canvas, redrawFunc) {
         const FLEX_CONTAINER = canvas.closest(".llmvis-flex-container");
         const FLEX_CHILD_COUNT = FLEX_CONTAINER.querySelectorAll(":scope > .llmvis-flex-child").length;
         const TABS_CONTAINER = document.getElementById("llmvis-tabs-container");
-        const VIS_CONTENT = document.getElementsByClassName("llmvis-visualization-content")[0];
+        const VIS_CONTENT = canvas.closest(".llmvis-visualization-content");
         const TOTAL_FLEX = parseInt(TABS_CONTAINER.style.flexGrow) +
             parseInt(VIS_CONTENT.style.flexGrow);
+        const OLD_DISPLAY = VIS_CONTENT.style.display;
+
+        if (VIS_CONTENT.style.display == "none") {
+            VIS_CONTENT.style.display = "block";
+        }
 
         const RESIZE_FUNC = function() {
             const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
@@ -274,7 +279,7 @@ function enableResizing(canvas, redrawFunc) {
             // Calculate other HTML elements (such as interactive elements)
             // that we also need to account for.
             for (const CHILD of OTHER_CHILDREN) {
-                subtractors += CHILD.clientHeight;
+                subtractors += CHILD.offsetHeight;
             }
 
             canvas.width = FLEX_CHILD_WIDTH;
@@ -285,5 +290,7 @@ function enableResizing(canvas, redrawFunc) {
         window.addEventListener("resize", RESIZE_FUNC);
         llmvisVisualizationResizeIds.add(canvas.id);
         RESIZE_FUNC();
+
+        VIS_CONTENT.style.display = OLD_DISPLAY;
     }
 }
