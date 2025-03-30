@@ -284,25 +284,33 @@ class HeatmapColorScheme:
     values.
 
     Values:
-    - `BLUE_RED`: Negative values use bluer colors, positive values use
+    - `BLUE_RED`: Colder values use bluer colors, hotter values use
         redder colors. Good for classic heatmap behaviour using
         colors that humans typically associate with heat.
-    - `RED_BLUE`: Inverse of `BLUE_RED`. Positive values use bluer colors,
-        negative values use redder colors.
-    - `GREEN_RED`: Negative values use greener colors, positive values use
+    - `RED_BLUE`: Inverse of `BLUE_RED`. Hotter values use bluer colors,
+        colder values use redder colors.
+    - `GREEN_RED`: Colder values use greener colors, hotter values use
         redder colors. Good for heatmap data, especially data that can be
-        both positive and negative, where you want to indicate that positive
-        values are "bad" while negative values are "good".
-    - `RED_GREEN`: Negative values use redder colors, positive values use
+        both hot and cold, where you want to indicate that hotter
+        values are "bad" while colder values are "good".
+    - `RED_GREEN`: Colder values use redder colors, hotter values use
         greener colors. Good for heatmap data, especially data that can be
-        both positive and negative, where you want to indicate that positive
-        values are "good" while negative values are "bad".
+        both hot and cold, where you want to indicate that cold
+        values are "good" while hot values are "bad".
+    - `GREEN_YELLOW_RED`: Colder values use greener colors, neutral values
+        use yellow colors and hotter values use redder colors. Good for
+        data that has more of an emphasis on neutrality.
+    - `RED_YELLOW_GREEN`: Colder values use redder colors, neutral values
+        use yellow colors and hotter values use greener colors. Good for
+        data that has more of an emphasis on neutrality.
     """
 
     BLUE_RED = 0
     RED_BLUE = 1
     GREEN_RED = 2
     RED_GREEN = 3
+    GREEN_YELLOW_RED = 4
+    RED_YELLOW_GREEN = 5
 
 
 class TextHeatmap(Visualization):
@@ -318,6 +326,7 @@ class TextHeatmap(Visualization):
         min_value: Optional[float] = None,
         max_value: Optional[float] = None,
         color_scheme: HeatmapColorScheme = HeatmapColorScheme.BLUE_RED,
+        relative_coloring: bool = False,
     ):
         """
         Create a new `TextHeatmap` for a provided list of `Unit`s.
@@ -336,8 +345,13 @@ class TextHeatmap(Visualization):
                 Default is `None`.
             color_scheme (HeatmapColorScheme): The `HeatmapColorScheme`
                 that should be used for coloring units. Default is
-                `BLUE_RED`, using blue for negative values and red for
-                positive values.
+                `BLUE_RED`, using blue for colder values and red for
+                hotter values.
+            relative_coloring (bool): Set this to `True` to use "relative
+                coloring", where the smallest values use the coldest colors
+                and the largest values use the hottest colors. `False` only
+                uses colder colors for negative values and hotter colors for
+                positive ones. Default is `False`.
         """
 
         super().__init__()
@@ -364,6 +378,7 @@ class TextHeatmap(Visualization):
         self.__max_weight = max_weight
         self.__min_weight = min_weight
         self.__color_scheme__ = color_scheme
+        self.__relative_coloring__ = relative_coloring
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="{self.WIDTH}" height="{self.HEIGHT}">'
@@ -389,6 +404,7 @@ class TextHeatmap(Visualization):
             self.__min_weight,
             self.__max_weight,
             self.__color_scheme__,
+            "true" if self.__relative_coloring__ else "false",
         )
         return js
 

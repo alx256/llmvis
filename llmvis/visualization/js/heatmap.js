@@ -9,8 +9,11 @@
  * @param {number} maxWeight The maximum weight out of all units.
  * @param {number} colorScheme The integer value of the color scheme that
  *      should be used.
+ * @param {boolean} relativeColoring Set this to `true` to enable "relative
+ *      coloring" whereby coloring just uses coldest values for the smallest
+ *      values and the hottest values for the largest values.
  */
-function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
+function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme, relativeColoring) {
     const HEATMAP_CANVAS = document.getElementById(canvasId);
     const CTX = HEATMAP_CANVAS.getContext("2d");
     const RECT = HEATMAP_CANVAS.getBoundingClientRect();
@@ -29,7 +32,9 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
         [[45, 52, 124], [69, 69, 69], [176, 46, 52]],   // Blue -> Red
         [[176, 46, 52], [69, 69, 69], [45, 52, 124]],   // Red -> Blue
         [[48, 147, 38], [69, 69, 69], [176, 46, 52]],   // Green -> Red
-        [[176, 46, 52], [69, 69, 69], [48, 147, 38]]    // Red -> Green
+        [[176, 46, 52], [69, 69, 69], [48, 147, 38]],   // Red -> Green
+        [[48, 147, 38], [180, 157, 46], [176, 46, 52]], // Green -> Yellow -> Red
+        [[176, 46, 52], [180, 157, 46], [48, 147, 38]]  // Red -> Yellow -> Green
     ];
     const COLD_VALUE = COLOR_SCHEMES[colorScheme][0];
     const NEUTRAL_VALUE = COLOR_SCHEMES[colorScheme][1];
@@ -38,18 +43,20 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
     const POSITIVE_PALETTE = [NEUTRAL_VALUE, HOT_VALUE];
     const NEGATIVE_PALETTE = [COLD_VALUE, NEUTRAL_VALUE];
 
-    var palette;
+    var palette = FULL_PALETTE;
 
-    if (minWeight < 0.0 && maxWeight > 0.0) {
-        const MAX_ABS_VALUE = Math.max(Math.abs(minWeight), Math.abs(maxWeight));
+    if (!relativeColoring) {
+        if (minWeight < 0.0 && maxWeight > 0.0) {
+            const MAX_ABS_VALUE = Math.max(Math.abs(minWeight), Math.abs(maxWeight));
 
-        palette = FULL_PALETTE;
-        minWeight = -MAX_ABS_VALUE;
-        maxWeight = MAX_ABS_VALUE;
-    } else if (minWeight < 0.0) {
-        palette = NEGATIVE_PALETTE;
-    } else {
-        palette = POSITIVE_PALETTE;
+            palette = FULL_PALETTE;
+            minWeight = -MAX_ABS_VALUE;
+            maxWeight = MAX_ABS_VALUE;
+        } else if (minWeight < 0.0) {
+            palette = NEGATIVE_PALETTE;
+        } else {
+            palette = POSITIVE_PALETTE;
+        }
     }
 
     const UNIT_SIZES = calculateCanvasSize(CTX, HEATMAP_CANVAS, units, X_INIT, Y_INIT,
@@ -87,7 +94,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
         // Mouse movements means that hover box should move accordingly
         // and appear/reappear if the cursor is now hovering/no longer
         // hovering over a unit.
-        drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme);
+        drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme, relativeColoring);
 
         var match;
 
@@ -115,7 +122,7 @@ function drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme) {
     };
 
     enableResizing(HEATMAP_CANVAS, function() {
-        drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme);
+        drawHeatmap(canvasId, units, minWeight, maxWeight, colorScheme, relativeColoring);
     });
 }
 

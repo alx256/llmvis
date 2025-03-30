@@ -421,7 +421,12 @@ class Connection(abc.ABC):
 
         importance_metric_comment = "Importance Metric: " + importance_metric
 
-        text_heatmap = TextHeatmap(importance_units, **additional_args)
+        text_heatmap = TextHeatmap(
+            importance_units,
+            color_scheme=HeatmapColorScheme.GREEN_YELLOW_RED,
+            relative_coloring=True,
+            **additional_args,
+        )
         text_heatmap.set_comments(self.__get_info__(), importance_metric_comment)
 
         tag_cloud = TagCloud(importance_units)
@@ -431,7 +436,9 @@ class Connection(abc.ABC):
 
         if use_perplexity_difference:
             perplexity_difference_heatmap = TextHeatmap(
-                perplexity_difference_units, color_scheme=HeatmapColorScheme.GREEN_RED
+                perplexity_difference_units,
+                color_scheme=HeatmapColorScheme.GREEN_YELLOW_RED,
+                relative_coloring=True,
             )
             perplexity_difference_heatmap.set_name("Perplexity Difference Text Heatmap")
             perplexity_difference_heatmap.set_comments(self.__get_info__())
