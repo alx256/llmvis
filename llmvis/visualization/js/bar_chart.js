@@ -52,121 +52,36 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const X_AXIS_LABEL_SPACING = 4;
     const Y_AXIS_LABEL_SPACING = 10;
 
-    BAR_CHART_CTX.strokeStyle = BAR_CHART_STROKE_COLOR;
-    BAR_CHART_CTX.beginPath();
-    
-    BAR_CHART_CTX.font = "15px DidactGothic";
+    drawAxis(
+        BAR_CHART_CTX,
+        BAR_CHART_AXIS_PADDING,
+        BAR_CHART_AXIS_PADDING,
+        BAR_CHART_STROKE_COLOR,
+        categoricalData(barChartValues.map((x) => x[0])),
+        AxisPosition.BOTTOM
+    );
 
-    // X Axis
-    BAR_CHART_CTX.moveTo(AXIS_START_POINT_X, AXIS_START_POINT_Y);
-    BAR_CHART_CTX.lineTo(AXIS_END_POINT_X, AXIS_START_POINT_Y);
+    const AXIS_DRAW_RESULTS = drawAxis(
+        BAR_CHART_CTX,
+        BAR_CHART_AXIS_PADDING,
+        BAR_CHART_AXIS_PADDING,
+        BAR_CHART_STROKE_COLOR,
+        continuousData(0, maxVal, Math.round(maxVal)),
+        AxisPosition.LEFT
+    )
 
-    // Y Axis
-    BAR_CHART_CTX.moveTo(BAR_CHART_AXIS_PADDING, AXIS_START_POINT_Y);
-    BAR_CHART_CTX.lineTo(BAR_CHART_AXIS_PADDING, AXIS_END_POINT_Y);
-    
-    // Y Ticks
-    var yTickPos = AXIS_START_POINT_Y;
-
-    // Calculate a step that is "nice"
-    const step = niceStep(maxVal, Y_TICK_COUNT);
-    maxVal = step*Math.ceil(maxVal/step);
-
-    // Y Tick Values
-    var maxYTick = -1;
-    var yPoint = 0;
-
-    for (var i = 0; i <= Y_TICK_COUNT; i++) {
-        // Correct potential floating point errors
-        yPoint = parseFloat(yPoint.toPrecision(12));
-
-        const str = yPoint.toString();
-        const measurements = BAR_CHART_CTX.measureText(str);
-
-        if (Number.isInteger(yPoint)) {
-            // Only show the ticker if it is an integer to avoid
-            // confusion
-            BAR_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
-            BAR_CHART_CTX.lineTo(AXIS_START_POINT_X - Y_TICK_LENGTH, yTickPos);
-
-            BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
-            BAR_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
-                yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
-        }
-
-        yTickPos -= (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / (maxVal / step);
-        yPoint += step;
-
-        if (measurements.width > maxYTick) {
-            maxYTick = measurements.width;
-        }
-
-        if (yTickPos.toPrecision(12) < AXIS_END_POINT_Y) {
-            break;
-        }
-    }
-
-    var maxOpposite = -1;
+    maxVal = AXIS_DRAW_RESULTS.max;
+    var x = AXIS_START_POINT_X + BAR_CHART_GAP;
 
     for (var i = 0; i < barChartValues.length; i++) {
         const ENTRY = barChartValues[i];
-        const NAME = ENTRY[0];
         const VALUE = ENTRY[1];
-        const X = BAR_CHART_AXIS_PADDING + BAR_CHART_GAP + (BAR_WIDTH + BAR_CHART_GAP)*i;
-        const TICK_X = X + BAR_WIDTH / 2;
-        const MEASUREMENTS = BAR_CHART_CTX.measureText(NAME);
-        const TEXT_WIDTH = MEASUREMENTS.width;
-        const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent + MEASUREMENTS.actualBoundingBoxDescent;
 
         BAR_CHART_CTX.fillStyle = calculateRgb(i, barChartValues.length - 1, 0);
-        BAR_CHART_CTX.fillRect(X, AXIS_START_POINT_Y, BAR_WIDTH, -((VALUE / maxVal) * (AXIS_START_POINT_Y - AXIS_END_POINT_Y)));
+        BAR_CHART_CTX.fillRect(x, AXIS_START_POINT_Y, BAR_WIDTH, -((VALUE / maxVal) * (AXIS_START_POINT_Y - AXIS_END_POINT_Y)));
 
-        // X-Axis Categorical Labels
-        BAR_CHART_CTX.save();
-        BAR_CHART_CTX.translate(TICK_X, AXIS_START_POINT_Y + X_TICK_LENGTH + X_AXIS_TICKS_MARGIN);
-        BAR_CHART_CTX.rotate(X_AXIS_TICKS_ROTATION_DEGREE*Math.PI/180);
-        BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
-        BAR_CHART_CTX.fillText(NAME, 0, 0);
-        BAR_CHART_CTX.restore();
-
-        /*
-        Calculate the opposite side length in the right-angle triangle formed with
-        Hypoteneuse = FONT_WIDTH
-        Theta = X_AXIS_TICKS_ROTATION_DEGREE
-
-        Calculating this will allow us to find the longest distance between the x axis
-        and the end of a label so we can draw the x axis label accordingly.
-        */
-        const OPPOSITE_SIDE_LENGTH = Math.sin(X_AXIS_TICKS_ROTATION_DEGREE) * TEXT_WIDTH;
-
-        if (OPPOSITE_SIDE_LENGTH > maxOpposite) {
-            maxOpposite = OPPOSITE_SIDE_LENGTH;
-        }
+        x += BAR_WIDTH + BAR_CHART_GAP*2;
     }
-
-    // X Axis Label
-    const X_LABEL_MEASURMENTS = BAR_CHART_CTX.measureText(xLabel);
-    const X_LABEL_HEIGHT = X_LABEL_MEASURMENTS.actualBoundingBoxAscent + X_LABEL_MEASURMENTS.actualBoundingBoxDescent;
-    const X_LABEL_X = AXIS_START_POINT_X + (AXIS_END_POINT_X - AXIS_START_POINT_X)/2 - X_LABEL_MEASURMENTS.width/2;
-    const X_LABEL_Y = AXIS_START_POINT_Y + X_LABEL_HEIGHT + X_AXIS_TICKS_MARGIN + maxOpposite + X_AXIS_LABEL_SPACING;
-    BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
-    // Draw label right on edge of canvas if it is going off the canvas
-    BAR_CHART_CTX.fillText(xLabel,
-        X_LABEL_X, (X_LABEL_Y > BAR_CHART_CANVAS.height) ? BAR_CHART_CANVAS.height : X_LABEL_Y);
-
-    // Y Axis Label
-    const Y_LABEL_MEASUREMENTS = BAR_CHART_CTX.measureText(yLabel);
-    const Y_LABEL_HEIGHT = Y_LABEL_MEASUREMENTS.actualBoundingBoxAscent + Y_LABEL_MEASUREMENTS.actualBoundingBoxDescent;
-    const Y_LABEL_X = AXIS_START_POINT_X - Y_TICK_LENGTH - maxYTick - Y_AXIS_LABEL_SPACING;
-    const Y_LABEL_Y = (AXIS_START_POINT_Y + AXIS_END_POINT_Y) / 2 + Y_LABEL_MEASUREMENTS.width/2;
-    BAR_CHART_CTX.save();
-    BAR_CHART_CTX.translate((Y_LABEL_X  - Y_LABEL_HEIGHT < 0) ? Y_LABEL_HEIGHT : Y_LABEL_X, Y_LABEL_Y);
-    BAR_CHART_CTX.rotate(-90*Math.PI/180);
-    BAR_CHART_CTX.fillStyle = BAR_CHART_STROKE_COLOR;
-    BAR_CHART_CTX.fillText(yLabel, 0, 0);
-    BAR_CHART_CTX.restore();
-
-    BAR_CHART_CTX.stroke();
 
     enableResizing(BAR_CHART_CANVAS, function() {
         drawBarChart(canvasId, barChartValues, xLabel, yLabel)

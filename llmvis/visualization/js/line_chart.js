@@ -20,8 +20,10 @@ function drawLineChart(canvasId, lineChartValues) {
     // Clear canvas in case line charts have been drawn before
     LINE_CHART_CTX.clearRect(0, 0, LINE_CHART_CANVAS.width, LINE_CHART_CANVAS.height);
 
-    var maxVal = -1;
-    var minVal = -1;
+    var maxXVal = -1;
+    var maxYVal = -1;
+    var minXVal = -1;
+    var minYVal = -1;
     var intValues = true;
 
     const AXIS_START_POINT_X = LINE_CHART_AXIS_PADDING;
@@ -77,7 +79,6 @@ function drawLineChart(canvasId, lineChartValues) {
 
     LINE_CHART_CANVAS.onmouseout = function (event) {
         // Refresh
-        console.log("hello");
         drawLineChart(canvasId, lineChartValues);
     };
 
@@ -89,8 +90,20 @@ function drawLineChart(canvasId, lineChartValues) {
     be rounded to.
     */
     for (value of lineChartValues) {
-        if (value.y > maxVal) {
-            maxVal = value.y;
+        if (maxXVal == -1 || value.x > maxXVal) {
+            maxXVal = value.x;
+        }
+
+        if (maxYVal == -1 || value.y > maxYVal) {
+            maxYVal = value.y;
+        }
+
+        if (minXVal == -1 || value.x < minXVal) {
+            minXVal = value.x;
+        }
+
+        if (minYVal == -1 || value.y < minYVal) {
+            minYVal = value.y;
         }
 
         intValues &&= Number.isInteger(value.y);
@@ -104,66 +117,33 @@ function drawLineChart(canvasId, lineChartValues) {
         last = value.x;
     }
 
-    maxVal += (intValues) ? 1 : maxVal * LINE_PADDING;
-    minVal = 0;
+    drawAxis(
+        LINE_CHART_CTX,
+        LINE_CHART_AXIS_PADDING,
+        LINE_CHART_AXIS_PADDING,
+        LINE_CHART_STROKE_COLOR,
+        categoricalData(lineChartValues.map((v) => v.x)),
+        AxisPosition.BOTTOM,
+        LocalTickPosition.FULL
+    )
 
-    LINE_CHART_CTX.strokeStyle = LINE_CHART_STROKE_COLOR;
-    LINE_CHART_CTX.beginPath();
+    const AXIS_DRAW_RESULTS = drawAxis(
+        LINE_CHART_CTX,
+        LINE_CHART_AXIS_PADDING,
+        LINE_CHART_AXIS_PADDING,
+        LINE_CHART_STROKE_COLOR,
+        continuousData(minYVal, maxYVal, Y_TICK_COUNT),
+        AxisPosition.LEFT
+    )
 
-    // X Axis
-    LINE_CHART_CTX.moveTo(AXIS_START_POINT_X, AXIS_START_POINT_Y);
-    LINE_CHART_CTX.lineTo(AXIS_END_POINT_X, AXIS_START_POINT_Y);
-
-    // Y Axis
-    LINE_CHART_CTX.moveTo(LINE_CHART_AXIS_PADDING, AXIS_START_POINT_Y);
-    LINE_CHART_CTX.lineTo(LINE_CHART_AXIS_PADDING, AXIS_END_POINT_Y);
-
-    // Y Ticks
-    var yTickPos = AXIS_START_POINT_Y;
-
-    const step = niceStep(maxVal, Y_TICK_COUNT);
-    maxVal = step*Math.ceil(maxVal/step);
-
-    LINE_CHART_CTX.font = "15px DidactGothic";
-
-    var maxYTick = -1;
-    var yPoint = 0;
-
-    // Y Tick Values
-    for (var i = 0; i <= Y_TICK_COUNT; i++) {
-        // Correct potential floating point errors
-        yPoint = parseFloat(yPoint.toPrecision(12));
-
-        const str = yPoint.toString();
-        const measurements = LINE_CHART_CTX.measureText(str);
-
-        if ((intValues && Number.isInteger(yPoint)) || !intValues) {
-            // Only show the ticker if it is an integer to avoid
-            // confusion
-            LINE_CHART_CTX.moveTo(AXIS_START_POINT_X, yTickPos);
-            LINE_CHART_CTX.lineTo(AXIS_START_POINT_X - Y_TICK_LENGTH, yTickPos);
-
-            LINE_CHART_CTX.fillStyle = LINE_CHART_STROKE_COLOR;
-            LINE_CHART_CTX.fillText(str, AXIS_START_POINT_X - Y_TICK_LENGTH - measurements.width,
-                yTickPos + (measurements.actualBoundingBoxAscent + measurements.actualBoundingBoxDescent) / 2);
-        }
-
-        yTickPos -= (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / (maxVal / step);
-        yPoint += step;
-
-        if (measurements.width > maxYTick) {
-            maxYTick = measurements.width;
-        }
-
-        if (yTickPos.toPrecision(12) < AXIS_END_POINT_Y) {
-            break;
-        }
-    }
+    maxVal = AXIS_DRAW_RESULTS.max;
 
     // Gap between each point on the x axis
     var previousX;
     var previousY;
     var nextX;
+
+    LINE_CHART_CTX.strokeStyle = LINE_CHART_STROKE_COLOR;
 
     // Draw the points and lines themselves
     for (var i = 0; i < lineChartValues.length; i++) {
@@ -195,13 +175,12 @@ function drawLineChart(canvasId, lineChartValues) {
             continue;
         }
 
-        LINE_CHART_CTX.fillText(NAME.toFixed(roundDp), X, AXIS_START_POINT_Y + X_TICK_LENGTH + TEXT_HEIGHT);
         nextX = X + MEASUREMENTS.width;
     }
 
     LINE_CHART_CTX.stroke();
 
     enableResizing(LINE_CHART_CANVAS, function() {
-        drawLineChart(canvasId, lineChartValues);
+        drawLineChart(canvasId, lineChartValues, xLabel, yLabel);
     });
 }

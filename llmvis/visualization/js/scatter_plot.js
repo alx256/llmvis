@@ -46,51 +46,35 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     var transformedPlots = [];
 
     const SCATTER_PLOT_STEP_COUNT = 20;
-    const SCATTER_PLOT_MARKING_LENGTH = 5;
     const SCATTER_PLOT_MARKINGS_MATRIX = [
         [1, 0],
         [-1, 0],
         [0, 1],
         [0, -1]
     ];
-    const AXIS_START_POINT_X = SCATTER_PLOT_AXIS_PADDING;
-    const AXIS_START_POINT_Y = SCATTER_PLOT_CANVAS.height - SCATTER_PLOT_AXIS_PADDING;
-    const AXIS_END_POINT_X = SCATTER_PLOT_CANVAS.width - SCATTER_PLOT_AXIS_PADDING;
-    const AXIS_END_POINT_Y = SCATTER_PLOT_AXIS_PADDING;
-    const SCATTER_PLOT_X_AXIS_Y = AXIS_START_POINT_Y;
-    const SCATTER_PLOT_Y_AXIS_X = AXIS_START_POINT_X;
 
-    SCATTER_PLOT_CTX.strokeStyle = SCATTER_PLOT_STROKE_COLOR;
-    SCATTER_PLOT_CTX.beginPath();
+    const AXES_DRAW_RESULTS_X = drawAxis(
+        SCATTER_PLOT_CTX,
+        SCATTER_PLOT_AXIS_PADDING,
+        SCATTER_PLOT_AXIS_PADDING,
+        SCATTER_PLOT_STROKE_COLOR,
+        continuousData(minX, maxX, SCATTER_PLOT_STEP_COUNT),
+        AxisPosition.BOTTOM
+    )
 
-    // X Axis
-    SCATTER_PLOT_CTX.moveTo(AXIS_START_POINT_X, SCATTER_PLOT_X_AXIS_Y);
-    SCATTER_PLOT_CTX.lineTo(AXIS_END_POINT_X, SCATTER_PLOT_X_AXIS_Y);
+    const AXES_DRAW_RESULTS_Y = drawAxis(
+        SCATTER_PLOT_CTX,
+        SCATTER_PLOT_AXIS_PADDING,
+        SCATTER_PLOT_AXIS_PADDING,
+        SCATTER_PLOT_STROKE_COLOR,
+        continuousData(minY, maxY, SCATTER_PLOT_STEP_COUNT),
+        AxisPosition.LEFT
+    )
 
-    // Y Axis
-    SCATTER_PLOT_CTX.moveTo(SCATTER_PLOT_Y_AXIS_X, AXIS_START_POINT_Y);
-    SCATTER_PLOT_CTX.lineTo(SCATTER_PLOT_Y_AXIS_X, AXIS_END_POINT_Y);
-    SCATTER_PLOT_CTX.stroke();
-
-    var stepX = niceStep(maxX - minX, SCATTER_PLOT_STEP_COUNT);
-    var stepY = niceStep(maxY - minY, SCATTER_PLOT_STEP_COUNT);
-
-    // Set the minimum to the closest step equal to
-    // or below it.
-    minX = stepX*Math.floor(minX/stepX);
-    minY = stepY*Math.floor(minY/stepY);
-
-    // Adjust maximum to be SCATTER_PLOT_STEP_COUNT
-    // steps away from the minimum, with an additional
-    // step for safety.
-    maxX = minX + stepX*(SCATTER_PLOT_STEP_COUNT+1);
-    maxY = minY + stepY*(SCATTER_PLOT_STEP_COUNT+1);
-
-    var xTickPos = minX;
-    var yTickPos = minY;
-
-    SCATTER_PLOT_CTX.font = "15px DidactGothic";
-    SCATTER_PLOT_CTX.fillStyle = SCATTER_PLOT_STROKE_COLOR;
+    minX = AXES_DRAW_RESULTS_X.min;
+    maxX = AXES_DRAW_RESULTS_X.max;
+    minY = AXES_DRAW_RESULTS_Y.min;
+    maxY = AXES_DRAW_RESULTS_Y.max;
 
     // Precompute the transformed plots to use multiple times later
     for (const PLOT of scatterPlotPlots) {
@@ -99,49 +83,6 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
                 PLOT.y, minX, minY, maxX, maxY
             )
         );
-    }
-
-    while (xTickPos <= maxX || yTickPos <= maxY) {
-        // Fix potential floating point problems
-        xTickPos = parseFloat(xTickPos.toPrecision(12));
-        yTickPos = parseFloat(yTickPos.toPrecision(12));
-
-        const SCREEN_COORDS = graphToScreen(SCATTER_PLOT_CANVAS, SCATTER_PLOT_AXIS_PADDING,
-            xTickPos, yTickPos, minX, minY, maxX, maxY);
-        const MEASUREMENTS_X = SCATTER_PLOT_CTX.measureText(xTickPos.toString());
-        const MEASUREMENTS_Y = SCATTER_PLOT_CTX.measureText(yTickPos.toString());
-        const TEXT_WIDTH_X = MEASUREMENTS_X.width;
-        const TEXT_HEIGHT_X = MEASUREMENTS_X.actualBoundingBoxAscent +
-            MEASUREMENTS_X.actualBoundingBoxDescent;
-        const TEXT_WIDTH_Y = MEASUREMENTS_Y.width;
-        const TEXT_HEIGHT_Y = MEASUREMENTS_Y.actualBoundingBoxAscent +
-            MEASUREMENTS_Y.actualBoundingBoxDescent;
-
-        SCATTER_PLOT_CTX.beginPath();
-
-        // X Axis
-        if (xTickPos <= maxX) {
-            SCATTER_PLOT_CTX.moveTo(SCREEN_COORDS.x, SCATTER_PLOT_X_AXIS_Y);
-            SCATTER_PLOT_CTX.lineTo(SCREEN_COORDS.x, SCATTER_PLOT_X_AXIS_Y + SCATTER_PLOT_MARKING_LENGTH);
-
-            SCATTER_PLOT_CTX.fillText(xTickPos.toString(),
-                SCREEN_COORDS.x - TEXT_WIDTH_X/2,
-                SCATTER_PLOT_X_AXIS_Y + SCATTER_PLOT_MARKING_LENGTH + TEXT_HEIGHT_X);
-        }
-
-        // Y Axis
-        if (yTickPos <= maxY) {
-            SCATTER_PLOT_CTX.moveTo(SCATTER_PLOT_Y_AXIS_X, SCREEN_COORDS.y);
-            SCATTER_PLOT_CTX.lineTo(SCATTER_PLOT_Y_AXIS_X - SCATTER_PLOT_MARKING_LENGTH, SCREEN_COORDS.y);
-
-            SCATTER_PLOT_CTX.fillText(yTickPos.toString(),
-                SCATTER_PLOT_Y_AXIS_X - SCATTER_PLOT_MARKING_LENGTH*2 - TEXT_WIDTH_Y,
-                SCREEN_COORDS.y + TEXT_HEIGHT_Y/2);
-        }
-
-        xTickPos += stepX;
-        yTickPos += stepY;
-        SCATTER_PLOT_CTX.stroke();
     }
 
     // Draw points

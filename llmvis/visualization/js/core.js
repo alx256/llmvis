@@ -294,3 +294,276 @@ function enableResizing(canvas, redrawFunc) {
         VIS_CONTENT.style.display = OLD_DISPLAY;
     }
 }
+
+/**
+ * A different data type that can be visualized. Available
+ * options:
+ * 
+ * - **CONTINUOUS**: Real-valued numerical data
+ * - **CATEGORICAL**: Data belonging to a discrete number of
+ * text or numerical categories.
+ */
+const DataType = {
+    CONTINUOUS: 0,
+    CATEGORICAL: 1
+};
+
+/**
+ * Build a new continuous data set.
+ * @param {number} start The numerical data point that the data
+ *      should start at.
+ * @param {number} end The numerical data point that the data
+ *      should end with.
+ * @param {number} count The number of data points that exist.
+ * @returns A `DataType` representing this data.
+ */
+function continuousData(start, end, count) {
+    return {
+        type: DataType.CONTINUOUS,
+        start: start,
+        end: end,
+        count: count
+    };
+}
+
+/**
+ * Build a new categorical data set.
+ * @param {Array} values An array containing the categorical data.
+ * Can be text or numerical data.
+ * @returns A `DataType` representing this data.
+ */
+function categoricalData(values) {
+    return {
+        type: DataType.CATEGORICAL,
+        values: values
+    };
+}
+
+/**
+ * The different positions that an axis can be drawn in.
+ * Note: do not think of this as the "direction" of the
+ * axis. i.e. `LEFT` means the axis is vertical and on the
+ * left side of the screen, not that it is horizontal and
+ * points are going in a leftwards direction. Available
+ * options:
+ * 
+ * - **LEFT**: Axis drawn on the left side of the screen.
+ * - **RIGHT**: Axis drawn on the right side of the screen.
+ * - **TOP**: Axis drawn on the top side of the screen.
+ * - **BOTTOM**: Axis drawn on the bottom side of the screen.
+ */
+const AxisPosition = {
+    LEFT: 0,
+    RIGHT: 1,
+    TOP: 2,
+    BOTTOM: 3
+};
+
+/**
+ * The position of each tick within its local region.
+ * Available options:
+ * 
+ * - **AUTO**: Automatically detect where the tick position
+ * should be based on what data is being represented.
+ * Specifically, selects `BEGINNING` for continuous data and
+ * `CENTER` for categorical data.
+ * - **BEGINNING**: The tick should be as left-most as
+ * possible.
+ * - **CENTER**: The tick should be centered.
+ * - **FULL**: Ticks should try to take up as much of the axis
+ * as possible. The first tick will be drawn at the very
+ * beginning of the axis, while the last will be drawn at the
+ * very end. 
+ */
+const LocalTickPosition = {
+    AUTO: 0,
+    BEGINNING: 1,
+    CENTER: 2,
+    FULL: 3
+};
+
+/**
+ * Draw an axis.
+ * @param {CanvasRenderingContext2D} ctx The context that this axis
+ *      should be drawn to.
+ * @param {number} marginX The x margin for this axis.
+ * @param {number} marginY The y margin for this axis.
+ * @param {string} color The CSS-style color that should be used for
+ *      drawing this axis.
+ * @param {Object} data The actual data to be drawn. Must be an object
+ *      created with the `continuousData` or `categoricalData` functions,
+ *      or must match the same object format that either of this functions
+ *      return.
+ * @param {AxisPosition} position The position that this axis should be
+ *      drawn to.
+ * @param {LocalTickPosition} tickPosition The local position of each tick.
+ * @returns An `Object` with the `min` and `max` properties representing the
+ *      calculated minimum and maximum values for this axis, respectively.
+ *      Useful in case that the resulting minimum or maximum values of the
+ *      axis do not match the minimum or maximum values of the provided data.
+ */
+function drawAxis(ctx, marginX, marginY, color, data, position, tickPosition = LocalTickPosition.AUTO) {
+    const MARKING_LENGTH = 5;
+    const AXIS_START_POINT_X = marginX;
+    const AXIS_START_POINT_Y = ctx.canvas.height - marginY;
+    const AXIS_END_POINT_X = ctx.canvas.width - marginX;
+    const AXIS_END_POINT_Y = marginY;
+    const X_AXIS_Y = AXIS_START_POINT_Y;
+    const Y_AXIS_X = AXIS_START_POINT_X;
+
+    if (tickPosition == LocalTickPosition.AUTO) {
+        tickPosition = (data.type == DataType.CATEGORICAL) ?
+            LocalTickPosition.CENTER :
+            LocalTickPosition.BEGINNING;
+    }
+
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+
+    var startPointX;
+    var startPointY;
+    var endPointX;
+    var endPointY;
+    var xMove;
+    var yMove;
+
+    switch (position) {
+    case AxisPosition.LEFT:
+        startPointX = Y_AXIS_X;
+        startPointY = AXIS_START_POINT_Y;
+        endPointX = Y_AXIS_X;
+        endPointY = AXIS_END_POINT_Y;
+        xMove = 0;
+        yMove = 1;
+        break;
+    case AxisPosition.RIGHT:
+        startPointX = AXIS_END_POINT_X;
+        startPointY = AXIS_START_POINT_Y;
+        endPointX = AXIS_END_POINT_X;
+        endPointY = AXIS_END_POINT_Y;
+        xMove = 0;
+        yMove = 1;
+        break;
+    case AxisPosition.TOP:
+        startPointX = AXIS_START_POINT_X;
+        startPointY = AXIS_END_POINT_Y;
+        endPointX = AXIS_END_POINT_X;
+        endPointY = AXIS_END_POINT_Y;
+        xMove = 1;
+        yMove = 0;
+        break;
+    case AxisPosition.BOTTOM:
+        startPointX = AXIS_START_POINT_X;
+        startPointY = X_AXIS_Y;
+        endPointX = AXIS_END_POINT_X;
+        endPointY = X_AXIS_Y;
+        xMove = 1;
+        yMove = 0;
+        break;
+    }
+
+    ctx.moveTo(startPointX, startPointY);
+    ctx.lineTo(endPointX, endPointY);
+    ctx.stroke();
+
+    var step;
+    var max;
+    var min;
+    var dataPointCount;
+
+    switch (data.type) {
+    case DataType.CONTINUOUS:
+        min = data.start;
+        max = data.end;
+        step = niceStep(max - min, data.count);
+        // Set the minimum to the closest step equal to
+        // or below it.
+        min = step*Math.floor(min/step);
+        // Adjust maximum to be `stepCount` steps away
+        // from the minimum, with an additional step for
+        // safety.
+        dataPointCount = data.count + 1;
+        max = min + step*dataPointCount;
+        break;
+    case DataType.CATEGORICAL:
+        min = 0;
+        max = data.values.length - 1;
+        step = 1;
+        dataPointCount = data.values.length;
+        break;
+    }
+
+    var tickPos = min;
+    var screenX = startPointX;
+    var screenY = startPointY;
+
+    if (tickPosition == LocalTickPosition.FULL) {
+        dataPointCount--;
+    }
+
+    var screenStep = (
+        (position == AxisPosition.LEFT || position == AxisPosition.RIGHT) ?
+            startPointY - endPointY :
+            endPointX - startPointX
+        )/dataPointCount;
+
+    if (tickPosition == LocalTickPosition.FULL) {
+        dataPointCount++;
+    }
+
+    ctx.font = "15px DidactGothic";
+    ctx.fillStyle = color;
+
+    if (tickPosition == LocalTickPosition.CENTER) {
+        screenX += xMove*(screenStep/2);
+        screenY -= yMove*(screenStep/2)
+    }
+
+    // Round to precision to potential floating point problems
+    while ((tickPos = parseFloat(tickPos.toPrecision(12))) <= max) {
+        var tickLabel;
+
+        switch (data.type) {
+        case DataType.CONTINUOUS:
+            tickLabel = tickPos.toString();
+            break;
+        case DataType.CATEGORICAL:
+            tickLabel = data.values[tickPos];
+            break;
+        }
+
+        const MEASUREMENTS = ctx.measureText(tickLabel);
+        const TEXT_WIDTH = MEASUREMENTS.width;
+        const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
+            MEASUREMENTS.actualBoundingBoxDescent;
+
+        ctx.beginPath();
+
+        if (tickPos <= max) {
+            ctx.moveTo(screenX, screenY);
+            ctx.lineTo(screenX - yMove*MARKING_LENGTH, screenY + xMove*MARKING_LENGTH);
+
+            if (position == AxisPosition.LEFT || position == AxisPosition.RIGHT) {
+                ctx.fillText(tickLabel,
+                    screenX - TEXT_WIDTH - MARKING_LENGTH,
+                    screenY + TEXT_HEIGHT/2
+                );
+            } else {
+                ctx.fillText(tickLabel,
+                    screenX - TEXT_WIDTH/2,
+                    screenY + TEXT_HEIGHT + MARKING_LENGTH
+                )
+            }
+        }
+
+        tickPos += step;
+        screenX += screenStep*xMove;
+        screenY -= screenStep*yMove;
+        ctx.stroke();
+    }
+
+    return {
+        min: min,
+        max: max
+    }
+}

@@ -84,18 +84,21 @@ function drawAiClassifier(canvasId, classifiedData, points) {
 
     CLASSIFIER_CTX.clearRect(0, 0, CLASSIFIER_CANVAS.width, CLASSIFIER_CANVAS.height);
 
-    CLASSIFIER_CTX.strokeStyle = STROKE_COLOR;
-    CLASSIFIER_CTX.beginPath();
+    drawAxis(CLASSIFIER_CTX,
+        maxClassTextMeasurement,
+        AXIS_PADDING_Y,
+        STROKE_COLOR,
+        categoricalData(points),
+        AxisPosition.BOTTOM
+    )
 
-    // X Axis
-    CLASSIFIER_CTX.moveTo(AXIS_START_POINT_X, AXIS_START_POINT_Y);
-    CLASSIFIER_CTX.lineTo(AXIS_END_POINT_X, AXIS_START_POINT_Y);
-
-    // Y Axis
-    CLASSIFIER_CTX.moveTo(AXIS_PADDING_X, AXIS_START_POINT_Y);
-    CLASSIFIER_CTX.lineTo(AXIS_PADDING_X, AXIS_END_POINT_Y);
-
-    CLASSIFIER_CTX.stroke();
+    drawAxis(CLASSIFIER_CTX,
+        maxClassTextMeasurement,
+        AXIS_PADDING_Y,
+        STROKE_COLOR,
+        categoricalData(classifiedData.map((d) => d[0])),
+        AxisPosition.LEFT
+    )
 
     const Y_AXIS_SEGMENT_HEIGHT = (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / classifiedData.length;
     const X_AXIS_SEGMENT_WIDTH = (AXIS_END_POINT_X - AXIS_START_POINT_X) / points.length;
@@ -122,7 +125,6 @@ function drawAiClassifier(canvasId, classifiedData, points) {
         const MEASUREMENTS = CLASSIFIER_CTX.measureText(STR);
 
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
-        CLASSIFIER_CTX.fillText(STR, X, AXIS_START_POINT_Y + axisLabelHeight + LABEL_MARGINS);
         nextX = X + MEASUREMENTS.width;
     }
 
@@ -136,9 +138,6 @@ function drawAiClassifier(canvasId, classifiedData, points) {
         const RECT_COLOR = calculateRgb(i, classifiedData.length - 1, 0);
 
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
-        CLASSIFIER_CTX.fillText(CLASS,
-            AXIS_START_POINT_X - MEASURED_WIDTH + LABEL_MARGINS,
-            yPosition + Y_AXIS_SEGMENT_HEIGHT/2);
 
         var last = undefined;
         var lastX = undefined;
