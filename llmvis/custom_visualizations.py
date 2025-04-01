@@ -18,7 +18,13 @@ class WordSpecificLineChart(LineChart):
     switch between the line charts for all the different words.
     """
 
-    def __init__(self, word_values: dict[str, list[Point]], t_values: list[int]):
+    def __init__(
+        self,
+        word_values: dict[str, list[Point]],
+        t_values: list[int],
+        x_axis_label: str = "",
+        y_axis_label: str = "",
+    ):
         """
         Create a new `WordSpecificLineChart` `Visualization`.
 
@@ -31,13 +37,21 @@ class WordSpecificLineChart(LineChart):
                 in a given word it is missing a frequency for a given temperature,
                 this can be treated as zero in the visualization and thus the line
                 chart x axis contains the same values for all words.
+            x_axis_label (str): The label that should be shown on the x-axis.
+                Default is an empty label.
+            y_axis_label (str): The label that should be shown on the y-axis.
+                Default is an empty label.
         """
 
         self.__word = list(word_values.keys())[0]
         self.__word_values = word_values
         self.__t_values = t_values
 
-        super().__init__(self.__filled_list(self.__word))
+        super().__init__(
+            self.__filled_list(self.__word),
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+        )
         self.__textbox_id = str(self.get_uuid()) + "0"
         self.__name__ = "Word-Specific Line Chart"
 

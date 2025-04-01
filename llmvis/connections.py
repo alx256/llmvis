@@ -469,7 +469,9 @@ class Connection(abc.ABC):
                         ),
                     )
                     for i in range(len(reduced))
-                ]
+                ],
+                x_axis_label="Embedding with PCA X",
+                y_axis_label="Embedding with PCA Y",
             )
             scatter_plot.set_comments(self.__get_info__())
             visualizations.append(scatter_plot)
@@ -606,7 +608,12 @@ class Connection(abc.ABC):
         )
         bar_chart.set_comments(self.__get_info__())
 
-        line_chart = WordSpecificLineChart(temperature_change_frequencies, t_values)
+        line_chart = WordSpecificLineChart(
+            temperature_change_frequencies,
+            t_values,
+            x_axis_label="Temperature",
+            y_axis_label="Frequency",
+        )
         line_chart.set_comments(self.__get_info__())
 
         Connection.__last_metric_id__ = K_TEMPERATURE_SAMPLING
@@ -759,6 +766,8 @@ class Connection(abc.ABC):
             ai_classifier = AIClassifier(
                 (response_data["classes"] if "classes" in response_data else []),
                 temperatures,
+                x_axis_label="Temperature",
+                y_axis_label="Concept",
             )
             ai_classifier.set_comments(self.__get_info__())
             visualizations.append(ai_classifier)
@@ -769,12 +778,16 @@ class Connection(abc.ABC):
         try:
             if len(response_data["hallucinations"]) >= 2:
                 hallucinations_line_chart = LineChart(
-                    [
-                        Point(r["t"], r["count"], r["explanation"])
-                        for r in response_data["hallucinations"]
-                    ]
-                    if "hallucinations" in response_data
-                    else []
+                    (
+                        [
+                            Point(r["t"], r["count"], r["explanation"])
+                            for r in response_data["hallucinations"]
+                        ]
+                        if "hallucinations" in response_data
+                        else []
+                    ),
+                    x_axis_label="Temperature",
+                    y_axis_label="Estimated Hallucinations",
                 )
                 hallucinations_line_chart.set_comments(self.__get_info__())
                 hallucinations_line_chart.set_name("Hallucinations Line Chart")

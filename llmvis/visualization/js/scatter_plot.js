@@ -18,7 +18,7 @@ function drawScatterPlot(canvasId, scatterPlotPlots, xLabel, yLabel) {
     const RECT = SCATTER_PLOT_CANVAS.getBoundingClientRect();
     const SCATTER_PLOT_STROKE_COLOR = 'rgb(222, 222, 222)';
     const SCATTER_PLOT_PLOT_RADIUS = 7;
-    const SCATTER_PLOT_AXIS_PADDING = 44;
+    const SCATTER_PLOT_AXIS_PADDING = 65;
     const TOOLTIP_SHOW_DISTANCE = SCATTER_PLOT_PLOT_RADIUS + 5;
 
     SCATTER_PLOT_CTX.clearRect(0, 0, SCATTER_PLOT_CANVAS.width, SCATTER_PLOT_CANVAS.height);

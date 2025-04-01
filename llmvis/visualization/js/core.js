@@ -406,7 +406,7 @@ const LocalTickPosition = {
  */
 function drawAxis(ctx, marginX, marginY, color, data, position, label = "", tickPosition = LocalTickPosition.AUTO) {
     const MARKING_LENGTH = 5;
-    const LABEL_SPACING = 19;
+    const LABEL_SPACING = 9;
     const AXIS_START_POINT_X = marginX;
     const AXIS_START_POINT_Y = ctx.canvas.height - marginY;
     const AXIS_END_POINT_X = ctx.canvas.width - marginX;
