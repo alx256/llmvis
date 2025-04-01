@@ -585,7 +585,9 @@ class ScatterPlot(Visualization):
     an array-like object of 2D points in 2D space.
     """
 
-    def __init__(self, plots: list[Point]):
+    def __init__(
+        self, plots: list[Point], x_axis_label: str = "", y_axis_label: str = ""
+    ):
         """
         Create a new `ScatterPlot` `Visualization` from a
         2D array of plots.
@@ -594,11 +596,19 @@ class ScatterPlot(Visualization):
             plots (list[Point]): A list of `Point` objects
                 representing the different 2D points that
                 this scatter plot should show.
+            x_axis_label (str): The label that should be
+                shown on the x-axis. Default is an empty
+                label.
+            y_axis_label (str): The label that should be
+                shown on the y-axis. Default is an empty
+                label.
         """
 
         super().__init__()
         self.__plots = plots
         self.__name__ = "Scatter Plot"
+        self.__x_axis_label__ = x_axis_label
+        self.__y_axis_label__ = y_axis_label
 
     def get_html(self):
         html = f'<canvas id="{self.get_uuid()}" width="700" height="700">'
@@ -611,6 +621,8 @@ class ScatterPlot(Visualization):
             "drawScatterPlot",
             f'"{self.get_uuid()}"',
             js_tools.list_as_js(self.__plots, do_conversion=True),
+            f'"{self.__x_axis_label__}"',
+            f'"{self.__y_axis_label__}"',
         )
 
     def get_dependencies(self):
@@ -696,7 +708,9 @@ class LineChart(Visualization):
     that are connected by lines.
     """
 
-    def __init__(self, values: list[Point]):
+    def __init__(
+        self, values: list[Point], x_axis_label: str = "", y_axis_label: str = ""
+    ):
         """
         Create a new `LineChart` `Visualization` for a list of values.
 
@@ -708,12 +722,18 @@ class LineChart(Visualization):
                 the second element is the numerical value (real or integer)
                 that will be shown on the y-axis. There must be a minimum
                 of two values provided.
+            x_axis_label (str): The label that should be shown on the
+                x-axis. Default is an empty label.
+            y_axis_label (str): The label that should be shown on the
+                y-axis. Default is an empty label.
         """
 
         assert len(values) >= 2
         super().__init__()
         self.__values = values
         self.__name__ = "Line Chart"
+        self.__x_axis_label__ = x_axis_label
+        self.__y_axis_label__ = y_axis_label
 
     def get_html(self) -> str:
         html = f'<canvas id="{self.get_uuid()}" width="500" height="500">'
@@ -726,6 +746,8 @@ class LineChart(Visualization):
             "drawLineChart",
             f'"{self.get_uuid()}"',
             list_as_js(self.__values, do_conversion=True),
+            f'"{self.__x_axis_label__}"',
+            f'"{self.__y_axis_label__}"',
         )
 
     def get_dependencies(self):

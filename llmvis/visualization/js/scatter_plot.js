@@ -7,8 +7,12 @@
  *      plotted. Each element of the list should be another list where
  *      the first element is the x position and the second element is the
  *      y position.
+ * @param {string} xLabel The label that should be shown on the x-axis.
+ *      Default is an empty label.
+ * @param {string} yLabel The label that should be shown on the y-axis.
+ *      Default is an empty label.
  */
-function drawScatterPlot(canvasId, scatterPlotPlots) {
+function drawScatterPlot(canvasId, scatterPlotPlots, xLabel, yLabel) {
     const SCATTER_PLOT_CANVAS = document.getElementById(canvasId);
     const SCATTER_PLOT_CTX = SCATTER_PLOT_CANVAS.getContext('2d');
     const RECT = SCATTER_PLOT_CANVAS.getBoundingClientRect();
@@ -53,23 +57,27 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
         [0, -1]
     ];
 
+    // X Axis
     const AXES_DRAW_RESULTS_X = drawAxis(
         SCATTER_PLOT_CTX,
         SCATTER_PLOT_AXIS_PADDING,
         SCATTER_PLOT_AXIS_PADDING,
         SCATTER_PLOT_STROKE_COLOR,
         continuousData(minX, maxX, SCATTER_PLOT_STEP_COUNT),
-        AxisPosition.BOTTOM
-    )
+        AxisPosition.BOTTOM,
+        xLabel
+    );
 
+    // Y Axis
     const AXES_DRAW_RESULTS_Y = drawAxis(
         SCATTER_PLOT_CTX,
         SCATTER_PLOT_AXIS_PADDING,
         SCATTER_PLOT_AXIS_PADDING,
         SCATTER_PLOT_STROKE_COLOR,
         continuousData(minY, maxY, SCATTER_PLOT_STEP_COUNT),
-        AxisPosition.LEFT
-    )
+        AxisPosition.LEFT,
+        yLabel
+    );
 
     minX = AXES_DRAW_RESULTS_X.min;
     maxX = AXES_DRAW_RESULTS_X.max;
@@ -107,7 +115,7 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
         const mouseX = event.clientX - RECT.left;
         const mouseY = event.clientY - RECT.top;
 
-        drawScatterPlot(canvasId, scatterPlotPlots);
+        drawScatterPlot(canvasId, scatterPlotPlots, xLabel, yLabel);
 
         for (var i = 0; i < transformedPlots.length; i++) {
             const TRANSFORMED_PLOT = transformedPlots[i];
@@ -126,7 +134,7 @@ function drawScatterPlot(canvasId, scatterPlotPlots) {
     }
 
     enableResizing(SCATTER_PLOT_CANVAS, function() {
-        drawScatterPlot(canvasId, scatterPlotPlots);
+        drawScatterPlot(canvasId, scatterPlotPlots, xLabel, yLabel);
     });
 }
 

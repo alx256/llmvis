@@ -396,14 +396,17 @@ const LocalTickPosition = {
  *      return.
  * @param {AxisPosition} position The position that this axis should be
  *      drawn to.
+ * @param {string} label The label that should be shown to describe this
+ *      axis. Default is an empty label.
  * @param {LocalTickPosition} tickPosition The local position of each tick.
  * @returns An `Object` with the `min` and `max` properties representing the
  *      calculated minimum and maximum values for this axis, respectively.
  *      Useful in case that the resulting minimum or maximum values of the
  *      axis do not match the minimum or maximum values of the provided data.
  */
-function drawAxis(ctx, marginX, marginY, color, data, position, tickPosition = LocalTickPosition.AUTO) {
+function drawAxis(ctx, marginX, marginY, color, data, position, label = "", tickPosition = LocalTickPosition.AUTO) {
     const MARKING_LENGTH = 5;
+    const LABEL_SPACING = 19;
     const AXIS_START_POINT_X = marginX;
     const AXIS_START_POINT_Y = ctx.canvas.height - marginY;
     const AXIS_END_POINT_X = ctx.canvas.width - marginX;
@@ -519,6 +522,9 @@ function drawAxis(ctx, marginX, marginY, color, data, position, tickPosition = L
         screenY -= yMove*(screenStep/2)
     }
 
+    var maxTickTextWidth = -1;
+    var maxTickTextHeight = -1;
+
     // Round to precision to potential floating point problems
     while ((tickPos = parseFloat(tickPos.toPrecision(12))) <= max) {
         var tickLabel;
@@ -536,6 +542,14 @@ function drawAxis(ctx, marginX, marginY, color, data, position, tickPosition = L
         const TEXT_WIDTH = MEASUREMENTS.width;
         const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
             MEASUREMENTS.actualBoundingBoxDescent;
+
+        if (maxTickTextWidth == -1 || TEXT_WIDTH > maxTickTextWidth) {
+            maxTickTextWidth = TEXT_WIDTH;
+        }
+
+        if (maxTickTextHeight == -1 || TEXT_HEIGHT > maxTickTextHeight) {
+            maxTickTextHeight = TEXT_HEIGHT;
+        }
 
         ctx.beginPath();
 
@@ -560,6 +574,30 @@ function drawAxis(ctx, marginX, marginY, color, data, position, tickPosition = L
         screenX += screenStep*xMove;
         screenY -= screenStep*yMove;
         ctx.stroke();
+    }
+
+    // Label
+    const LABEL_MEASUREMENTS = ctx.measureText(label);
+    const LABEL_HEIGHT = LABEL_MEASUREMENTS.actualBoundingBoxAscent + LABEL_MEASUREMENTS.actualBoundingBoxDescent;
+    const LABEL_X = (position == AxisPosition.LEFT || position == AxisPosition.RIGHT) ?
+        AXIS_START_POINT_X - MARKING_LENGTH - maxTickTextWidth - LABEL_SPACING :
+        AXIS_START_POINT_X + (AXIS_END_POINT_X - AXIS_START_POINT_X)/2 - LABEL_MEASUREMENTS.width/2;
+    const LABEL_Y = (position == AxisPosition.LEFT || position == AxisPosition.RIGHT) ?
+        (AXIS_START_POINT_Y + AXIS_END_POINT_Y) / 2 + LABEL_MEASUREMENTS.width/2 :
+        AXIS_START_POINT_Y + LABEL_HEIGHT + MARKING_LENGTH + maxTickTextHeight + LABEL_SPACING;
+    ctx.fillStyle = color;
+
+    if (position == AxisPosition.LEFT || position == AxisPosition.RIGHT) {
+        ctx.save();
+        ctx.translate((LABEL_X  - LABEL_HEIGHT < 0) ? LABEL_HEIGHT : LABEL_X, LABEL_Y);
+        ctx.rotate(-90*Math.PI/180);
+        ctx.fillStyle = color;
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+    } else {
+        // Draw label right on edge of canvas if it is going off the canvas
+        ctx.fillText(label, LABEL_X,
+            (LABEL_Y > ctx.canvas.height) ? ctx.canvas.height : LABEL_Y);
     }
 
     return {

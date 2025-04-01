@@ -140,7 +140,13 @@ class AIClassifier(Visualization):
     and shows a rectangle to visualize which data points belong to which class.
     """
 
-    def __init__(self, items: Optional[list[any]], t_values: list[float]):
+    def __init__(
+        self,
+        items: Optional[list[any]],
+        t_values: list[float],
+        x_axis_label: str = "",
+        y_axis_label: str = "",
+    ):
         """
         Create a new `AIClassifier` `Visualization`.
 
@@ -157,12 +163,18 @@ class AIClassifier(Visualization):
                 present in `items` should be present in this list, however not
                 all the points in this list need to necessarily be present in
                 `items`.
+            x_axis_label (str): The label that should be used for the x-axis of
+                this visualization. Default is an empty label.
+            y_axis_label (str): The label that should be used for the y-axis of
+                this visualization. Default is an empty label.
         """
 
         super().__init__()
         self.__items = items
         self.__t_values = t_values
         self.__name__ = "AI Classifier"
+        self.__x_axis_label__ = x_axis_label
+        self.__y_axis_label__ = y_axis_label
 
     def get_html(self) -> str:
         if self.__items is None:
@@ -177,7 +189,12 @@ class AIClassifier(Visualization):
             return ""
 
         return self.call_function(
-            "drawAiClassifier", f'"{self.get_uuid()}"', self.__items, self.__t_values
+            "drawAiClassifier",
+            f'"{self.get_uuid()}"',
+            self.__items,
+            self.__t_values,
+            f'"{self.__x_axis_label__}"',
+            f'"{self.__y_axis_label__}"',
         )
 
     def get_dependencies(self):

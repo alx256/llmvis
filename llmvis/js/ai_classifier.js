@@ -12,7 +12,7 @@
  * @param {Object} points A list containing all the available
  *      points that this classifier visualization could have.
  */
-function drawAiClassifier(canvasId, classifiedData, points) {
+function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
     const CLASSIFIER_CANVAS = document.getElementById(canvasId);
     const CLASSIFIER_CTX = CLASSIFIER_CANVAS.getContext('2d');
     const LABEL_MARGINS = 8;
@@ -84,20 +84,24 @@ function drawAiClassifier(canvasId, classifiedData, points) {
 
     CLASSIFIER_CTX.clearRect(0, 0, CLASSIFIER_CANVAS.width, CLASSIFIER_CANVAS.height);
 
+    // X Axis
     drawAxis(CLASSIFIER_CTX,
         maxClassTextMeasurement,
         AXIS_PADDING_Y,
         STROKE_COLOR,
         categoricalData(points),
-        AxisPosition.BOTTOM
+        AxisPosition.BOTTOM,
+        xLabel
     )
 
+    // Y Axis
     drawAxis(CLASSIFIER_CTX,
         maxClassTextMeasurement,
         AXIS_PADDING_Y,
         STROKE_COLOR,
         categoricalData(classifiedData.map((d) => d[0])),
-        AxisPosition.LEFT
+        AxisPosition.LEFT,
+        yLabel
     )
 
     const Y_AXIS_SEGMENT_HEIGHT = (AXIS_START_POINT_Y - AXIS_END_POINT_Y) / classifiedData.length;
@@ -185,7 +189,7 @@ function drawAiClassifier(canvasId, classifiedData, points) {
     }
 
     enableResizing(CLASSIFIER_CANVAS, function() {
-        drawAiClassifier(canvasId, classifiedData, points);
+        drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel);
     });
 }
 

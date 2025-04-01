@@ -44,30 +44,27 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const FULL_BAR_WIDTH = (AXIS_END_POINT_X - AXIS_START_POINT_X) / barChartValues.length;
     const BAR_CHART_GAP = FULL_BAR_WIDTH / 6;
     const BAR_WIDTH = FULL_BAR_WIDTH - (BAR_CHART_GAP*2);
-    const Y_TICK_COUNT = 10;
-    const Y_TICK_LENGTH = 5;
-    const X_TICK_LENGTH = 5;
-    const X_AXIS_TICKS_ROTATION_DEGREE = 45;
-    const X_AXIS_TICKS_MARGIN = 10;
-    const X_AXIS_LABEL_SPACING = 4;
-    const Y_AXIS_LABEL_SPACING = 10;
 
+    // X Axis
     drawAxis(
         BAR_CHART_CTX,
         BAR_CHART_AXIS_PADDING,
         BAR_CHART_AXIS_PADDING,
         BAR_CHART_STROKE_COLOR,
         categoricalData(barChartValues.map((x) => x[0])),
-        AxisPosition.BOTTOM
+        AxisPosition.BOTTOM,
+        xLabel
     );
 
+    // Y Axis
     const AXIS_DRAW_RESULTS = drawAxis(
         BAR_CHART_CTX,
         BAR_CHART_AXIS_PADDING,
         BAR_CHART_AXIS_PADDING,
         BAR_CHART_STROKE_COLOR,
         continuousData(0, maxVal, Math.round(maxVal)),
-        AxisPosition.LEFT
+        AxisPosition.LEFT,
+        yLabel
     )
 
     maxVal = AXIS_DRAW_RESULTS.max;
