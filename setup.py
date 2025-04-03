@@ -10,7 +10,7 @@ setup(
     long_description_content_type="text/markdown",
     packages=["llmvis"] + ["llmvis." + pkg for pkg in find_packages("llmvis")],
     package_data={
-        "llmvis": ["assets/fonts/*"],
+        "llmvis": ["assets/fonts/*", "js/*"],
         "llmvis.visualization": ["css/*.css", "html/*.html", "js/*.js"],
     },
     install_requires=[
