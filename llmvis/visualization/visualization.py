@@ -6,7 +6,6 @@ import uuid
 
 from llmvis.core import js_tools
 from llmvis.core.js_tools import escape_all, list_as_js
-from llmvis.core.linked_files import relative_file_read
 
 
 class Unit:
@@ -409,7 +408,7 @@ class TextHeatmap(Visualization):
         return js
 
     def get_dependencies(self):
-        return ["js/heatmap.js"]
+        return ["visualization/js/heatmap.js"]
 
 
 class TableHeatmap(Visualization):
@@ -576,7 +575,7 @@ class TagCloud(Visualization):
         return js
 
     def get_dependencies(self):
-        return ["js/tag_cloud.js"]
+        return ["visualization/js/tag_cloud.js"]
 
 
 class ScatterPlot(Visualization):
@@ -626,7 +625,7 @@ class ScatterPlot(Visualization):
         )
 
     def get_dependencies(self):
-        return ["js/scatter_plot.js"]
+        return ["visualization/js/scatter_plot.js"]
 
 
 class BarChart(Visualization):
@@ -679,7 +678,7 @@ class BarChart(Visualization):
         )
 
     def get_dependencies(self):
-        return ["js/bar_chart.js"]
+        return ["visualization/js/bar_chart.js"]
 
     def __get_js_values(self) -> str:
         """
@@ -751,7 +750,7 @@ class LineChart(Visualization):
         )
 
     def get_dependencies(self):
-        return ["js/line_chart.js"]
+        return ["visualization/js/line_chart.js"]
 
 
 class RadarChart(Visualization):
@@ -787,4 +786,4 @@ class RadarChart(Visualization):
         )
 
     def get_dependencies(self):
-        return ["js/radar_chart.js"]
+        return ["visualization/js/radar_chart.js"]

@@ -73,7 +73,7 @@ class WordSpecificLineChart(LineChart):
         return js + super().get_js()
 
     def get_dependencies(self):
-        return ["../js/word_specific_line_chart.js"] + super().get_dependencies()
+        return ["js/word_specific_line_chart.js"] + super().get_dependencies()
 
     def __values_as_object(self):
         """
@@ -212,7 +212,7 @@ class AIClassifier(Visualization):
         )
 
     def get_dependencies(self):
-        return ["../js/ai_classifier.js"]
+        return ["js/ai_classifier.js"]
 
 
 class Token:
@@ -318,7 +318,7 @@ class AlternativeTokens(Visualization):
         )
 
     def get_dependencies(self):
-        return ["../js/alternative_tokens.js"]
+        return ["js/alternative_tokens.js"]
 
 
 class TokenSpecificRadarChart(RadarChart):
@@ -376,7 +376,7 @@ class TokenSpecificRadarChart(RadarChart):
         )
 
     def get_dependencies(self):
-        return ["../js/token_specific_radar_chart.js"] + super().get_dependencies()
+        return ["js/token_specific_radar_chart.js"] + super().get_dependencies()
 
 
 class TemperatureSpecificVisualization(Visualization):
@@ -475,7 +475,7 @@ class TemperatureSpecificVisualization(Visualization):
         )
 
     def get_dependencies(self):
-        return ["../js/temperature_specific.js"]
+        return ["js/temperature_specific.js"]
 
 
 class TemperatureSpecificRadarChart(TemperatureSpecificVisualization):

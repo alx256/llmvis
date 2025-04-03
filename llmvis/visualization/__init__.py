@@ -122,8 +122,8 @@ class Visualizer:
         """
 
         # Embed CSS directly into the HTML
-        style = read_css("css/style.css")
-        prelude = read_html("html/prelude.html")
+        style = read_css("visualization/css/style.css")
+        prelude = read_html("visualization/html/prelude.html")
         rgb = f"rgb(23, 21, 33)"
 
         html = "<!DOCTYPE html>"
@@ -175,8 +175,8 @@ class Visualizer:
         script = ""
 
         # Add required scripts
-        script += relative_file_read("js/core.js")
-        script += relative_file_read("js/tabs.js")
+        script += relative_file_read("visualization/js/core.js")
+        script += relative_file_read("visualization/js/tabs.js")
 
         # Add any scripts from visualizations
         added = set()

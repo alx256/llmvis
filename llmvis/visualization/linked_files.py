@@ -1,22 +1,25 @@
+import llmvis
 from pathlib import Path
 
-root_path = Path(__file__).parent
+root_path = Path(llmvis.__file__).parent
+
 
 def read_html(relative_path_str: str) -> str:
     """
     Read the contents of an HTML file and return it.
-    
+
     Args:
         relative_path_str (str): The path of the HTML file
             to read. Note that it is a relative path, so it
             should be relative to the submodule directory
             that the file that calls this is located in.
-    
+
     Returns:
         A string containing the contents of the HTML
             file.
     """
     return relative_file_read(relative_path_str)
+
 
 def read_css(relative_path_str: str) -> str:
     """
@@ -28,13 +31,14 @@ def read_css(relative_path_str: str) -> str:
             to read. Note that it is a relative path, so it
             should be realative to the submodule directory
             that the file that calls this is located in.
-    
+
     Returns:
         A string containing an HTML representation of this
             CSS file using the `<style>` tag.
     """
 
-    return '<style>' + relative_file_read(relative_path_str) + '</style>'
+    return "<style>" + relative_file_read(relative_path_str) + "</style>"
+
 
 def relative_file_read(relative_path_str: str) -> str:
     """
@@ -56,13 +60,14 @@ def relative_file_read(relative_path_str: str) -> str:
     Args:
         relative_path_str (str): The relative path of the file
             that should be accessed.
-    
+
     Returns:
         A string containing the contents of the file.
     """
 
     file = absolute_path(relative_path_str).open()
     return file.read()
+
 
 def absolute_path(relative_path_str: str) -> Path:
     """
@@ -71,7 +76,7 @@ def absolute_path(relative_path_str: str) -> Path:
     Args:
         relative_path_str (str): The relative path that
             should be converted to an absolute path.
-    
+
     Returns:
         A `Path` representing the absolute path.
     """
