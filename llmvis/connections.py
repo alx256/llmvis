@@ -1123,6 +1123,18 @@ class WatsonXConnection(Connection):
         if system_prompt is not None:
             messages = [{"role": "system", "content": system_prompt}] + messages
 
+        request_json = {
+            "messages": messages,
+            "model_id": self.__model_name__,
+            "project_id": self.__project_id__,
+            "temperature": temperature,
+            "logprobs": alternative_tokens,
+            "max_tokens": 128,
+        }
+
+        if alternative_tokens:
+            request_json["top_logprobs"] = 5
+
         response = requests.post(
             self.__get_url__("chat"),
             headers={
@@ -1130,15 +1142,7 @@ class WatsonXConnection(Connection):
                 "Accept": "application/json",
                 "Content-Type": "application/json",
             },
-            json={
-                "messages": messages,
-                "model_id": self.__model_name__,
-                "project_id": self.__project_id__,
-                "temperature": temperature,
-                "logprobs": alternative_tokens,
-                "top_logprobs": 5 if alternative_tokens else 0,
-                "max_tokens": 128,
-            },
+            json=request_json,
         )
 
         if response.status_code != 200:
