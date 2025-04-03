@@ -8,6 +8,7 @@ import numpy as np
 from typing_extensions import Optional
 import json
 import requests
+from decimal import Decimal
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -523,8 +524,15 @@ class Connection(abc.ABC):
         if end == start:
             raise RuntimeError("start and end cannot be the same.")
 
-        step = (start + end) / (k - 1)
-        t = start
+        # Use approach inspired by "nice" scaling
+        # Aim to prevent steps with many digits after
+        # the decimal place
+        x = (end - start) / (k - 1)
+        p = 10 ** (math.floor(math.log(x)))
+        f = x / p
+        step = Decimal(str(p * (round(f))))
+
+        t = Decimal(str(start))
         # Temperature values
         temperatures = []
         # Store the frequency of each word to visualize as a bar chart
@@ -537,25 +545,35 @@ class Connection(abc.ABC):
         radar_chart_data = {}
         t_values = []
 
-        for _ in range(k):
-            t_values.append(t)
+        for i in range(k):
+            tf = float(t)
+
+            if i == k - 1:
+                # This is the last sample. The temperature
+                # might not be exactly the end temperature
+                # (it might be 0.99 for example) but we show
+                # it as the end temperature so that users
+                # aren't confused.
+                tf = end
+
+            t_values.append(tf)
             sample = self.__make_request__(
                 prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=t,
+                temperature=tf,
                 alternative_tokens=alternative_tokens,
             )
 
-            samples.append([t, sample.message])
-            temperatures.append(t)
+            samples.append([tf, sample.message])
+            temperatures.append(tf)
 
             if alternative_tokens:
-                alternative_tokens_data[t] = [
+                alternative_tokens_data[tf] = [
                     sample.candidate_token_groups,
                     sample.selected_indices,
                     sample.fallback_tokens,
                 ]
-                radar_chart_data[t] = sample.alternative_tokens
+                radar_chart_data[tf] = sample.alternative_tokens
 
             for word in sample.message.split(" "):
                 # Only keep alpha-numeric (i.e. ignore punctuation) chars
@@ -574,17 +592,16 @@ class Connection(abc.ABC):
                 # Calculate the frequencies for each temperature value for this word
                 if (
                     len(temperature_change_frequencies[chars]) > 0
-                    and temperature_change_frequencies[chars][-1].x == t
+                    and temperature_change_frequencies[chars][-1].x == tf
                 ):
                     temperature_change_frequencies[chars][-1].y += 1
                 else:
-                    temperature_change_frequencies[chars].append(Point(t, 1))
+                    temperature_change_frequencies[chars].append(Point(tf, 1))
 
             t += step
 
         table_heatmap = TableHeatmap(
-            # TODO: Add original rounding approach back
-            contents=[[("{0:.2f}".format(t)), sample] for t, sample in samples],
+            contents=[[t, sample] for t, sample in samples],
             headers=["Sampled Temperature", "Sample Result"],
         )
         table_heatmap.set_comments(self.__get_info__())
