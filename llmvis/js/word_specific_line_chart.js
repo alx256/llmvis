@@ -9,7 +9,7 @@
  * @param {Object} wordValues The object mapping a text value to the
  *      corresponding line chart data.
  */
-function connectFieldToLineChart(canvasId, fieldId, wordValues) {
+function connectFieldToLineChart(canvasId, fieldId, wordValues, xLabel, yLabel) {
     const FIELD = document.getElementById(fieldId);
 
     // When the user pressed the enter key after editing the text
@@ -28,6 +28,6 @@ function connectFieldToLineChart(canvasId, fieldId, wordValues) {
             return;
         }
 
-        drawLineChart(canvasId, RESULT);
+        drawLineChart(canvasId, RESULT, xLabel, yLabel);
     });
 }

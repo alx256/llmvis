@@ -69,6 +69,8 @@ class WordSpecificLineChart(LineChart):
             f'"{self.get_uuid()}"',
             f'"{self.__textbox_id}"',
             self.__values_as_object(),
+            f'"{self.__x_axis_label__}"',
+            f'"{self.__y_axis_label__}"',
         )
         return js + super().get_js()
 
