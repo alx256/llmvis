@@ -120,7 +120,7 @@ function drawLineChart(canvasId, lineChartValues, xLabel, yLabel) {
         LINE_CHART_AXIS_PADDING,
         LINE_CHART_AXIS_PADDING,
         LINE_CHART_STROKE_COLOR,
-        continuousData(minYVal, maxYVal, Y_TICK_COUNT),
+        continuousData(minYVal, maxYVal, Math.min(Math.ceil(maxYVal - minYVal), Y_TICK_COUNT)),
         AxisPosition.LEFT,
         yLabel
     )

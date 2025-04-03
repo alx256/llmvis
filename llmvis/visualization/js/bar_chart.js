@@ -25,6 +25,7 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
     const AXIS_START_POINT_Y = BAR_CHART_CANVAS.height - BAR_CHART_AXIS_PADDING;
     const AXIS_END_POINT_X = BAR_CHART_CANVAS.width - BAR_CHART_AXIS_PADDING;
     const AXIS_END_POINT_Y = BAR_CHART_AXIS_PADDING;
+    const Y_TICK_COUNT = 10;
 
     var maxVal = -1;
 
@@ -62,7 +63,7 @@ function drawBarChart(canvasId, barChartValues, xLabel, yLabel) {
         BAR_CHART_AXIS_PADDING,
         BAR_CHART_AXIS_PADDING,
         BAR_CHART_STROKE_COLOR,
-        continuousData(0, maxVal, Math.round(maxVal)),
+        continuousData(0, maxVal, Math.min(Math.ceil(maxVal), Y_TICK_COUNT)),
         AxisPosition.LEFT,
         yLabel
     )
