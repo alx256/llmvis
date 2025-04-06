@@ -30,6 +30,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     const PALETTE = [[176, 46, 52], [180, 157, 46], [48, 147, 38]];
     const FLEX_CONTAINER = CANVAS.closest(".llmvis-flex-container");
     const FLEX_CHILD_COUNT = FLEX_CONTAINER.querySelectorAll(":scope > .llmvis-flex-child").length;
+    const MAX_SCALE = 1.0;
 
     var currentScale = 1.0;
     var offsetScale = 1.0;
@@ -39,6 +40,12 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
     var stoppedScrolling = false;
     var minProb;
     var maxProb;
+    var showMoreBoundaries;
+    var showPreviousBoundaries;
+    var startIndex = 0;
+    var fallbackTokenStackTop = 0;
+    var oldFallbackTokenStackTops = [0];
+    var newFallbackTokenStackTop;
 
     // Redraw the visualization and refit it to the screen.
     const UPDATE = function(readjust_window = false) {
@@ -48,7 +55,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         CTX.clearRect(0, 0, CANVAS.width/offsetScale, CANVAS.height/offsetScale);
 
         const DRAW_RESULT = updateAlternativeTokens(CTX, candidateTokenGroups,
-            selectedIndices, fallbackTokens, currentScale, PALETTE);
+            selectedIndices, fallbackTokens, currentScale, PALETTE, startIndex, fallbackTokenStackTop);
         const FURTHEST_EXTENT = DRAW_RESULT.furthestExtent*offsetScale;
 
         chunks = DRAW_RESULT.chunks;
@@ -56,6 +63,9 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         xOffset = DRAW_RESULT.xOffset;
         minProb = DRAW_RESULT.minProb;
         maxProb = DRAW_RESULT.maxProb;
+        showMoreBoundaries = DRAW_RESULT.showMoreBoundaries;
+        showPreviousBoundaries = DRAW_RESULT.showPreviousBoundaries;
+        newFallbackTokenStackTop = DRAW_RESULT.fallbackTokenStackTop;
 
         if (readjust_window) {
             const FLEX_CHILD_WIDTH = window.innerWidth / FLEX_CHILD_COUNT;
@@ -64,7 +74,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
             if (CANVAS.width != newWidth) {
                 CANVAS.width = newWidth;
                 updateAlternativeTokens(CTX, candidateTokenGroups,
-                    selectedIndices, fallbackTokens, offsetScale, PALETTE);
+                    selectedIndices, fallbackTokens, offsetScale, PALETTE, startIndex, fallbackTokenStackTop);
                 CANVAS.parentElement.style.width = FLEX_CHILD_WIDTH + "px";
             }
         }
@@ -96,6 +106,9 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         }
     };
 
+    var hoveringShowMore = false;
+    var hoveringShowPrevious = false;
+
     CANVAS.onmousemove = function(event) {
         if (!chunks) {
             return;
@@ -122,6 +135,40 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
                 }
             }
         }
+
+        if (showPreviousBoundaries) {
+            hoveringShowPrevious = mouseX >= showPreviousBoundaries.x &&
+                mouseX <= showPreviousBoundaries.x + showPreviousBoundaries.width &&
+                mouseY >= showPreviousBoundaries.y &&
+                mouseY <= showPreviousBoundaries.y + showPreviousBoundaries.height;
+        }
+
+        if (showMoreBoundaries) {
+            hoveringShowMore = mouseX >= showMoreBoundaries.x &&
+                mouseX <= showMoreBoundaries.x + showMoreBoundaries.width &&
+                mouseY >= showMoreBoundaries.y &&
+                mouseY <= showMoreBoundaries.y + showMoreBoundaries.height;
+        }
+    }
+
+    CANVAS.onmousedown = function() {
+        if (hoveringShowMore) {
+            startIndex += 128;
+            UPDATE(true);
+            oldFallbackTokenStackTops.push(newFallbackTokenStackTop);
+            fallbackTokenStackTop = newFallbackTokenStackTop;
+            CANVAS.parentElement.scrollTo({left: 0});
+            hoveringShowMore = false;
+        }
+
+        if (hoveringShowPrevious) {
+            startIndex -= 128;
+            oldFallbackTokenStackTops.pop();
+            fallbackTokenStackTop = oldFallbackTokenStackTops[oldFallbackTokenStackTops.length - 1];
+            UPDATE(true);
+            CANVAS.parentElement.scrollTo({left: CANVAS.width});
+            hoveringShowPrevious = false;
+        }
     }
 
     var timer;
@@ -136,10 +183,16 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
         // Figure this out by having a timer do the readjust which is
         // reset each time an onwheel event is receieved.
         timer = setTimeout(() => UPDATE(true, /* readjust window */), 150);
-        currentScale = 1.0 - event.deltaY*SCROLL_SCALE;
+        currentScale = 1.0 - event.deltaY*SCROLL_SCALE, MAX_SCALE;
         offsetScale *= currentScale;
-        UPDATE();
-        currentScale = 1.0;
+
+        if (offsetScale > MAX_SCALE) {
+            currentScale = 1.0;
+            offsetScale = MAX_SCALE;
+        } else {
+            UPDATE();
+            currentScale = 1.0;
+        }
     };
 
     // Set canvas width to 0 to force a readjust (in the case that
@@ -197,8 +250,7 @@ function drawAlternativeTokens(canvasId, legendId, candidateTokenGroups, selecte
  * @returns An object with information about the visualization that was just
  * drawn.
  */
-function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens, zoom, palette) {
-    const FALLBACK_STACK = fallbackTokens.slice().reverse(); // Slice to create copy
+function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fallbackTokens, zoom, palette, startIndex, fallbackTokenStackTop) {
     const STROKE_COLOR = 'rgb(222, 222, 222)';
     const UNSELECTED_TOKEN_COLOR = 'rgb(125, 125, 122)';
     const PADDING = 100;
@@ -208,7 +260,9 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     const Y_SPACING = 20;
     const FONT_SIZE = 35;
     const CONNECTOR_SPACING = 12;
-    
+    const MAX_GROUPS = 128;
+    const BUTTON_PLACEMENT_MARGIN = 14;
+
     var yPosition;
     var xPosition = STARTING_X_POSITION;
     var maxTextWidth;
@@ -216,11 +270,10 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     var minProb;
 
     ctx.scale(zoom, zoom);
-    ctx.font = `${FONT_SIZE}px DidactGothic`;
     ctx.strokeStyle = STROKE_COLOR;
     ctx.beginPath();
 
-    for (group of candidateTokenGroups) {
+    for (var group of candidateTokenGroups) {
         for (token of group) {
             const TEXT_WIDTH = ctx.measureText(token.text).width;
 
@@ -238,7 +291,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
         }
     }
 
-    for (fallbackToken of fallbackTokens) {
+    for (var fallbackToken of fallbackTokens) {
         const TEXT_WIDTH = ctx.measureText(fallbackToken.text).width;
 
         if (!maxTextWidth || TEXT_WIDTH > maxTextWidth) {
@@ -266,8 +319,18 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     var lastSelectedRgb;
     var furthestExtent;
     var chunks = new Map();
+    var showPreviousBoundaries;
+    var showMoreBoundaries;
 
-    for (var i = 0; i < candidateTokenGroups.length; i++) {
+    if (startIndex > 0) {
+        const BOUNDARIES = drawShowButton(ctx, BUTTON_PLACEMENT_MARGIN, `Show previous...`);
+        xPosition = BOUNDARIES.width + X_SPACING;
+        showPreviousBoundaries = BOUNDARIES;
+    }
+
+    ctx.font = `${FONT_SIZE}px DidactGothic`;
+
+    for (var i = startIndex; i < Math.min(startIndex + MAX_GROUPS, candidateTokenGroups.length); i++) {
         const GROUP = candidateTokenGroups[i];
         const SELECTED_INDEX = selectedIndices[i];
 
@@ -336,7 +399,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
         // first n most probable tokens (contained in
         // candidateTokenGroups).
         if (!foundSelected) {
-            const FALLBACK_TOKEN = FALLBACK_STACK.pop();
+            const FALLBACK_TOKEN = fallbackTokens[fallbackTokenStackTop++];
             const MEASUREMENTS = ctx.measureText(FALLBACK_TOKEN.text);
             const TEXT_WIDTH = MEASUREMENTS.width;
             const TEXT_HEIGHT = MEASUREMENTS.actualBoundingBoxAscent +
@@ -406,11 +469,71 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
         xPosition += maxWidth + X_SPACING;
     }
 
+    if (startIndex + MAX_GROUPS < candidateTokenGroups.length) {
+        const BOUNDARIES = drawShowButton(ctx, xPosition - BUTTON_PLACEMENT_MARGIN,
+            `Show next...`);
+
+        furthestExtent = xPosition + BOUNDARIES.width;
+        showMoreBoundaries = BOUNDARIES;
+    }
+
     ctx.stroke();
     return {furthestExtent: furthestExtent,
         chunks: chunks,
         chunkWidth: CHUNK_WIDTH,
         xOffset: STARTING_X_POSITION,
         minProb: minProb,
-        maxProb: maxProb};
+        maxProb: maxProb,
+        showPreviousBoundaries: showPreviousBoundaries,
+        showMoreBoundaries: showMoreBoundaries,
+        fallbackTokenStackTop: fallbackTokenStackTop
+    };
+}
+
+/**
+ * Draw a button to a 2D rendering context that can be used for showing
+ * more groups.
+ * @param {CanvasRenderingContext2D} ctx The context that should be used
+ *      for drawing this button.
+ * @param {number} x The x position of this button. The y position will be
+ *      centred.
+ * @param {string} text The text that should be shown on this button.
+ * @returns An object containing the `x` and `y` properties with the x and
+ * y positions of the button, respectively. Also contains the `width` and
+ * `height` properties which contains the width and height of the button
+ * respectively.
+ */
+function drawShowButton(ctx, x, text) {
+    ctx.font = "21px DidactGothic";
+
+    const LOAD_MORE_BUTTON_MARGIN = 4;
+    const LOAD_MORE_BUTTON_RADIUS = 100;
+    const BUTTON_STR = text;
+    const BUTTON_STR_MEASUREMENTS = ctx.measureText(BUTTON_STR);
+    const BUTTON_STR_WIDTH = BUTTON_STR_MEASUREMENTS.width;
+    const BUTTON_STR_HEIGHT = BUTTON_STR_MEASUREMENTS.actualBoundingBoxAscent +
+        BUTTON_STR_MEASUREMENTS.actualBoundingBoxDescent;
+    const BUTTON_X = x;
+    const BUTTON_Y = ctx.canvas.height/2 + BUTTON_STR_HEIGHT/2;
+
+    ctx.strokeStyle = "rgb(111, 113, 140)";
+    ctx.fillStyle = "rgb(111, 113, 140)";
+    ctx.beginPath();
+    ctx.roundRect(BUTTON_X, BUTTON_Y,
+        BUTTON_STR_WIDTH + LOAD_MORE_BUTTON_MARGIN*2,
+        BUTTON_STR_HEIGHT + LOAD_MORE_BUTTON_MARGIN*2,
+        LOAD_MORE_BUTTON_RADIUS);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = 'rgb(222, 222, 222)';
+    ctx.fillText(BUTTON_STR,
+        BUTTON_X + LOAD_MORE_BUTTON_MARGIN,
+        BUTTON_Y + BUTTON_STR_HEIGHT + LOAD_MORE_BUTTON_MARGIN);
+
+    return {
+        x: BUTTON_X,
+        y: BUTTON_Y,
+        width: BUTTON_STR_WIDTH + LOAD_MORE_BUTTON_MARGIN*2,
+        height: BUTTON_STR_HEIGHT + LOAD_MORE_BUTTON_MARGIN*2
+    }
 }
