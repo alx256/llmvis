@@ -788,7 +788,7 @@ class Connection(abc.ABC):
             )
             ai_classifier.set_comments(self.__get_info__())
             visualizations.append(ai_classifier)
-        except KeyError:
+        except (KeyError, TypeError):
             # TODO: Error
             pass
 
