@@ -117,15 +117,15 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
     */
     var nextX;
 
-    for (point of points) {
-        const NORMALIZED = normalized(point, maxVal, minVal, points.length);
-        const X = AXIS_START_POINT_X + NORMALIZED*(AXIS_END_POINT_X - AXIS_START_POINT_X);
+    for (var i = 0; i < points.length; i++) {
+        const X = AXIS_START_POINT_X + (i/(points.length-1))*(AXIS_END_POINT_X - AXIS_START_POINT_X);
+        const POINT = points[i];
 
         if (nextX != undefined && X < nextX) {
             continue;
         }
 
-        const STR = point.toFixed(roundDp);
+        const STR = POINT.toFixed(roundDp);
         const MEASUREMENTS = CLASSIFIER_CTX.measureText(STR);
 
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
@@ -143,22 +143,28 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
 
         CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
 
-        var last = undefined;
         var lastX = undefined;
+        var lastIndex = undefined;
         // Number of connected rects
         var connectors = 1;
 
-        for (match of MATCHES) {
-            const NORMALIZED = normalized(match, maxVal, minVal, points.length);
-            const X = AXIS_START_POINT_X + NORMALIZED*(AXIS_END_POINT_X - AXIS_START_POINT_X);
+        for (var match of MATCHES) {
+            const INDEX = points.indexOf(match);
+
+            if (INDEX == -1) {
+                // Misclassification
+                continue;
+            }
+
+            const X = AXIS_START_POINT_X + (INDEX/points.length)*(AXIS_END_POINT_X - AXIS_START_POINT_X);
             // Determine if this rect should be connected to the previous one
             // Occurs if the distance between this point and the previous point
             // is roughly the expected distance between two points and hence the two
             // rects are back-to-back. Because we are dealing with floating-point
             // arithmetic there is a margin of error, so check if the difference is
             // less than some small value.
-            const SHOULD_CONNECT = last != undefined && Math.abs(last - match) - (maxVal-minVal)/(points.length-1) < 0.01;
-            
+            const SHOULD_CONNECT = lastIndex != undefined && INDEX == lastIndex + 1;
+
             if (SHOULD_CONNECT) {
                 connectors += 1;
             }
@@ -177,7 +183,7 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
             CLASSIFIER_CTX.strokeStyle = STROKE_COLOR;
             CLASSIFIER_CTX.fillStyle = STROKE_COLOR;
 
-            last = match;
+            lastIndex = INDEX;
 
             if (!SHOULD_CONNECT) {
                 lastX = RECT_X;
@@ -191,20 +197,4 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
     enableResizing(CLASSIFIER_CANVAS, function() {
         drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel);
     });
-}
-
-/**
- * Normalize a point. This will result in a value between `0.0` and
- * `1.0` where `0.0` is the smallest point and `1.0` is the last point +
- * the distance between any two points. Note that `1.0` does not correlate
- * to the maximum point value because we want the last point to be drawn
- * slightly inwards on the x-axis.
- * @param {*} point The point value that should be normalized
- * @param {*} maxVal The maximum point value
- * @param {*} minVal The minimum point value
- * @param {*} pointsCount The number of points
- * @returns A value from `0.0` to `1.0` representing a normalized point.
- */
-function normalized(point, maxVal, minVal, pointsCount) {
-    return (point - minVal)/((maxVal + (maxVal - minVal)/(pointsCount-1)) - minVal);
 }
