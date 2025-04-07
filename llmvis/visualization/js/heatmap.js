@@ -160,7 +160,8 @@ function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spa
 
         ctx.font = font;
 
-        for (const WORD of WORDS) {
+        for (var i = 0; i < WORDS.length; i++) {
+            const WORD = WORDS[i];
             // Calculate (without drawing) the size of the unit
             const measurements = ctx.measureText(WORD);
             const ascent = measurements.fontBoundingBoxAscent;
@@ -170,14 +171,16 @@ function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spa
             const adjusted_font_width = margin * 2 + font_width;
             const adjusted_font_height = margin * 2 + font_height;
 
-            if (widthSum + adjusted_font_width > canvas.width && WORDS.length != 1) {
-                rectPositions.push({
-                    unit: unit,
-                    x: lastRectStart,
-                    y: heightSum,
-                    width: lineWidth - spacing,
-                    weight: unit.weight,
-                });
+            if (widthSum + adjusted_font_width > canvas.width) {
+                if (WORDS.length > 1 && i < WORDS.length - 1) {
+                    rectPositions.push({
+                        unit: unit,
+                        x: lastRectStart,
+                        y: heightSum,
+                        width: lineWidth - spacing,
+                        weight: unit.weight,
+                    });
+                }
                 widthSum = spacing;
                 lastRectStart = widthSum;
                 lineWidth = 0;
