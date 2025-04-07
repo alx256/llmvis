@@ -20,7 +20,15 @@ function connectFieldToLineChart(canvasId, fieldId, wordValues, xLabel, yLabel) 
             return;
         }
 
-        const RESULT = wordValues[FIELD.value.toString()];
+        // Ensure that only alphanumeric characters are searched for,
+        // since only words with alphanumeric characters are used as
+        // keys.
+        const REGEX = /[^A-Za-z0-9]/g;
+        const SEARCH_TERM = FIELD.value
+            .toString()
+            .replace(REGEX, "")
+            .toLowerCase();
+        const RESULT = wordValues[SEARCH_TERM];
 
         if (RESULT == undefined) {
             // Does not exist
