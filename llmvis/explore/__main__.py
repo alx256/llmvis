@@ -28,6 +28,14 @@ QLabel#title {
     font-size: 45px;
 }
 
+QLabel#visualizationText {
+    font-size: 35px;
+}
+
+QLabel#visualizationSubtext {
+    font-size: 23px;
+}
+
 QPushButton {
     border: 2px solid #5A9;
     border-radius: 15px;
