@@ -4,18 +4,19 @@ import sys
 import warnings
 
 from llmvis.explore.main_window import MainWindow
-from llmvis.core.linked_files import absolute_path
+from llmvis.visualization.linked_files import absolute_path
 
 app = QApplication(sys.argv)
 
 # Load custom font to match visualizations
-font_file_path = absolute_path('assets/fonts/DidactGothic-Regular.ttf')
+font_file_path = absolute_path("assets/fonts/DidactGothic-Regular.ttf")
 id = QFontDatabase.addApplicationFont(str(font_file_path))
 
 if id < 0:
-    warnings.warn('Failed to load custom fonts')
+    warnings.warn("Failed to load custom fonts")
 
-app.setStyleSheet('''
+app.setStyleSheet(
+    """
 * {
     font-family: "Didact Gothic";
     font-size: 18px;
@@ -34,7 +35,8 @@ QPushButton {
     color: white;
     padding: 5px 15px;
 }
-''')
+"""
+)
 
 window = MainWindow()
 window.show()

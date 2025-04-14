@@ -21,7 +21,7 @@ from typing import Callable
 import requests
 
 from llmvis.explore.visualizations_screen import VisualizationsScreen
-from llmvis.core.linked_files import absolute_path
+from llmvis.visualization.linked_files import absolute_path
 
 SAVED_CONNECTIONS_DIR = absolute_path("__saved_connections")
 
