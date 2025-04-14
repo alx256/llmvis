@@ -10,7 +10,7 @@ import json
 import requests
 from decimal import Decimal
 
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import PCA
 
@@ -116,11 +116,14 @@ class UnitType:
     - **SENTENCE** - A sentence, defined as a sequence of words
     surrounded by punctuation that can terminate a sentence
     (e.g. `.`, `!` or `?`).
+    - **SEGMENT** - A segment, a dynamically-sized part of the prompt
+    that has a similar inverse cosine difference when removed.
     """
 
     TOKEN = 0
     WORD = 1
     SENTENCE = 2
+    SEGMENT = 3
 
 
 class ImportanceCalculation:
@@ -201,6 +204,7 @@ class Connection(abc.ABC):
         sampling_ratio: float = 0.0,
         use_perplexity_difference: bool = False,
         test_system_prompt: bool = False,
+        similarity_threshold: float = 0.1,
     ) -> Visualizer:
         """
         Calculate the importance of each word in a given prompt
@@ -229,6 +233,10 @@ class Connection(abc.ABC):
             test_system_prompt (bool): Set this to `True` to calculate
                 the word importance for the system prompt instead of
                 the main prompt.
+            similarity_threshold (float): Only used if `unit_type` is set to
+                `UnitType.SEGMENT`. This is the value that, when a new word is
+                removed from the prompt, will start a new segment if the inverse
+                cosine similarity is greater than this.
 
         Returns:
             A `Visualizer` showing a table heatmap, a text heatmap and a tag cloud
@@ -271,55 +279,210 @@ class Connection(abc.ABC):
                     None, re.split(f"([^{punctuation}]*[{punctuation}]+)", test_prompt)
                 )
             )
+        elif unit_type == UnitType.SEGMENT:
+            # Segments are built word-by-word
+            separated_prompt = test_prompt.split(" ")
 
-        combinator = Combinator(separated_prompt)
-        combinations = combinator.get_combinations(r=sampling_ratio)
-        requests = [test_prompt] + [
-            self.__flatten_words(combination, delimiter=" ")
-            for combination in combinations
-        ]
-        missing_terms_strs = []
+        # The combination of units used to make a request to the model
+        combinations = [test_prompt]
+        # Combinations formatted nicely to be put in a table, with missing
+        # terms replaced with underscores
+        formatted_combinations = [test_prompt]
+        # The responses (containing additional response data) from the model
+        # Not just the text responses
+        responses = []
+        # The core response of the model
+        outputs = []
+        # The vectorised results of the model
         vectors = []
+        # Strings with terms clearly missing for table
+        missing_terms_strs = []
+        # The text that should be shown for each unit
+        unit_texts = []
+        # Metric values for each unit
+        vals = []
+        # Cosine similarities for each unit
+        similarities = []
 
-        if calculation == ImportanceCalculation.GENERATION:
-            vectors, responses, outputs = self.__batch_generate__(
-                system_prompt, use_perplexity_difference, requests
-            )
-        elif calculation == ImportanceCalculation.EMBEDDING:
-            vectors = np.array(self.__calculate_embeddings__(requests))
-            responses = ["N/A"] * len(requests)
-            outputs = vectors
+        if unit_type == UnitType.SEGMENT:
+            original_response = None
+            original_response_reshaped = None
 
-        for i in range(len(requests[1:])):
-            missing_terms_strs.append("")
-            missing_term_indices = combinator.get_missing_terms(i)
+            # Generate original response to compare future responses to
+            if calculation == ImportanceCalculation.GENERATION:
+                original_response = self.__make_request__(
+                    prompt,
+                    system_prompt,
+                    temperature=0.0,
+                    alternative_tokens=use_perplexity_difference,
+                )
+                responses.append(original_response)
+                outputs.append(original_response.message)
+            elif calculation == ImportanceCalculation.EMBEDDING:
+                original_response = self.__calculate_embeddings__([test_prompt])[0]
+                original_response_reshaped = np.reshape(original_response, (1, -1))
+                responses.append("N/A")
+                outputs.append(np.array(original_response))
 
-            for index in missing_term_indices:
-                missing_term = separated_prompt[index]
-                combinations[i].insert(index, "_" * len(missing_term)), " "
-                requests[i + 1] = self.__flatten_words(combinations[i], delimiter=" ")
+            segment = []
+            segment_length = 0
+            index = 0
+            last_response = ""
+            last_embedding = []
+            segment_similarity = None
+            started_new_unit = True
 
-                missing_terms_strs[-1] += missing_term
+            # End a segment and start a new one
+            # Defined in a nested function to do this both when
+            # the difference passes the threshold but also when
+            # we finish going through all the words.
+            def end_segment():
+                nonlocal separated_prompt
+                nonlocal index
+                nonlocal segment
+                nonlocal segment_similarity
+                nonlocal segment_length
+                nonlocal started_new_unit
 
-                if i < len(missing_term_indices) - 1:
-                    missing_terms_strs[-1] += ", "
+                responses.append(last_response)
+                if calculation == ImportanceCalculation.GENERATION:
+                    outputs.append(last_response.message)
+                elif calculation == ImportanceCalculation.EMBEDDING:
+                    outputs.append(np.array(last_embedding))
 
-        # Use TF-IDF representation to calculate similarity between each
-        # response and the full response
-        similarities = cosine_similarity(
-            vectors[0].reshape(1, -1), vectors[1:]
-        ).flatten()
+                missing_terms_strs.append("")
+                vals.append(segment_similarity)
+                similarities.append(segment_similarity)
+
+                for i, removed_unit_text in enumerate(segment):
+                    missing_terms_strs[-1] += removed_unit_text
+
+                    if i < len(segment) - 1:
+                        missing_terms_strs[-1] += ", "
+
+                before = separated_prompt[:index]
+                after = separated_prompt[index:]
+                formatted_combinations.append(
+                    self.__flatten_words(
+                        before + ["_" * segment_length] + after, delimiter=" "
+                    )
+                )
+
+                separated_prompt = before + segment + after
+                index += len(segment)
+                segment_length = 0
+                segment = []
+                segment_similarity = None
+                started_new_unit = True
+
+            while index < len(separated_prompt):
+                unit_text = separated_prompt.pop(index)
+                modified_prompt = self.__flatten_words(separated_prompt, delimiter=" ")
+                vectorizer = CountVectorizer()
+                separated_prompt.insert(index, unit_text)
+
+                if calculation == ImportanceCalculation.GENERATION:
+                    response = self.__make_request__(
+                        prompt if test_system_prompt else modified_prompt,
+                        (system_prompt if not test_system_prompt else modified_prompt),
+                        temperature=0.0,
+                        alternative_tokens=use_perplexity_difference,
+                    )
+                    vect = vectorizer.fit_transform(
+                        [original_response.message, response.message]
+                    )
+                    similarity = cosine_similarity(vect[0], vect[1])[0][0]
+                elif calculation == ImportanceCalculation.EMBEDDING:
+                    embedding = self.__calculate_embeddings__([modified_prompt])[0]
+                    similarity = cosine_similarity(
+                        original_response_reshaped, np.reshape(embedding, (1, -1))
+                    )[0][0]
+
+                # Inverse cosine
+                similarity = 1.0 - similarity
+
+                if (
+                    segment_similarity is not None
+                    and abs(segment_similarity - similarity) >= similarity_threshold
+                ):
+                    end_segment()
+
+                separated_prompt.pop(index)
+                segment.append(unit_text)
+                segment_length += len(unit_text)
+
+                if started_new_unit:
+                    unit_texts.append("")
+
+                if len(unit_texts[-1]) > 0:
+                    unit_texts[-1] += " "
+
+                unit_texts[-1] += unit_text
+                started_new_unit = False
+
+                if segment_similarity is None:
+                    segment_similarity = similarity
+
+                if calculation == ImportanceCalculation.GENERATION:
+                    last_response = response
+                elif calculation == ImportanceCalculation.EMBEDDING:
+                    last_embedding = embedding
+
+            if len(segment) > 0:
+                end_segment()
+        else:
+            combinator = Combinator(separated_prompt)
+            combinations += [
+                self.__flatten_words(words, delimiter=" ")
+                for words in combinator.get_combinations(r=sampling_ratio)
+            ]
+
+            if calculation == ImportanceCalculation.GENERATION:
+                vectors, responses, outputs = self.__batch_generate__(
+                    system_prompt, use_perplexity_difference, combinations
+                )
+            elif calculation == ImportanceCalculation.EMBEDDING:
+                vectors = np.array(self.__calculate_embeddings__(combinations))
+                responses = ["N/A"] * len(combinations)
+                outputs = vectors
+
+            for i in range(len(combinations[1:])):
+                missing_terms_strs.append("")
+                missing_term_indices = combinator.get_missing_terms(i)
+                formatted_combination = separated_prompt.copy()
+
+                for index in missing_term_indices:
+                    missing_term = separated_prompt[index]
+                    formatted_combination = (
+                        formatted_combination[:index]
+                        + ["_" * len(missing_term)]
+                        + formatted_combination[index + 1 :]
+                    )
+                    missing_terms_strs[-1] += missing_term
+
+                    if i < len(missing_term_indices) - 1:
+                        missing_terms_strs[-1] += ", "
+
+                formatted_combinations.append(
+                    self.__flatten_words(formatted_combination, delimiter=" ")
+                )
+
+            # Use TF-IDF representation to calculate similarity between each
+            # response and the full response
+            similarities = cosine_similarity(
+                vectors[0].reshape(1, -1), vectors[1:]
+            ).flatten()
+
+            if importance_metric == ImportanceMetric.INVERSE_COSINE:
+                vals = [1.0 - similarity for similarity in similarities]
+            elif importance_metric == ImportanceMetric.SHAPLEY:
+                vals = combinator.get_shapley_values(similarities)
+            else:
+                raise RuntimeError("Invalid similarity index used!")
+
+            unit_texts = separated_prompt
 
         # Start the visualization
-        vals = []
-
-        if importance_metric == ImportanceMetric.INVERSE_COSINE:
-            vals = [1.0 - similarity for similarity in similarities]
-        elif importance_metric == ImportanceMetric.SHAPLEY:
-            vals = combinator.get_shapley_values(similarities)
-        else:
-            raise RuntimeError("Invalid similarity index used!")
-
         importance_units = []
         full_prompt_perplexity = (
             self.__perplexity__(
@@ -331,8 +494,8 @@ class Connection(abc.ABC):
         perplexity_difference_units = []
         table_contents = []
 
-        for i in range(len(separated_prompt)):
-            text = separated_prompt[i]
+        for i in range(len(unit_texts)):
+            text = unit_texts[i]
             val = vals[i]
             response = responses[i + 1]
 
@@ -375,7 +538,7 @@ class Connection(abc.ABC):
 
         table_contents = [
             [
-                requests[i],
+                formatted_combinations[i],
                 outputs[i],
                 missing_terms_strs[i - 1] if i > 0 else "N/A",
                 # str(shapley_vals[i - 1]) if i > 0 else "N/A",
@@ -433,7 +596,7 @@ class Connection(abc.ABC):
             # computations (per scikit-learn recommendations
             # https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
             pca = PCA(n_components=2)
-            reduced = pca.fit_transform(vectors)
+            reduced = pca.fit_transform(outputs)
 
             scatter_plot = ScatterPlot(
                 [
@@ -441,16 +604,7 @@ class Connection(abc.ABC):
                         reduced[i][0],
                         reduced[i][1],
                         "Missing terms: "
-                        + (
-                            "No missing terms"
-                            if i == 0
-                            else " ".join(
-                                [
-                                    separated_prompt[j]
-                                    for j in combinator.get_missing_terms(i - 1)
-                                ]
-                            )
-                        ),
+                        + ("No missing terms" if i == 0 else missing_terms_strs[i - 1]),
                     )
                     for i in range(len(reduced))
                 ],
