@@ -1184,7 +1184,10 @@ class OllamaConnection(Connection):
         return ModelResponse(message=response.response)
 
     def __calculate_embeddings__(self, prompts: list[str]) -> list[list[float]]:
-        return ollama.embed(model=self._model_name, input=prompts).embeddings
+        return [
+            ollama.embed(model=self._model_name, input=prompt).embeddings[0]
+            for prompt in prompts
+        ]
 
     def __mediate__(
         self,
