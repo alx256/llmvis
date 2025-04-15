@@ -1,5 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QGridLayout,
     QWidget,
     QDialog,
@@ -13,9 +14,17 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QPixmap
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from llmvis.connections import OllamaConnection, WatsonXConnection
+from llmvis import visualization
+from llmvis.connections import (
+    ImportanceCalculation,
+    ImportanceMetric,
+    OllamaConnection,
+    UnitType,
+    WatsonXConnection,
+)
 from typing import Callable, Optional
 
+from llmvis.visualization import Visualizer
 from llmvis.visualization.linked_files import absolute_path
 
 
@@ -79,70 +88,119 @@ class VisualizationButton(QPushButton):
         layout.addWidget(subtext_label)
 
         self.setLayout(layout)
-        self.mouseReleaseEvent = onclick
+        self.clicked.connect(onclick)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
 
-class WordImportanceDialog(QDialog):
+class VisualizationCreationDialog(QDialog):
     """
     Dialog shown where the users can provide the parameters
     for the word importance visualizations.
     """
 
-    def __init__(self, callback: Callable):
+    def __init__(self, callback: Callable, visualization_name: str):
         """
-        Create a new `WordImportanceDialog` with a callback function.
+        Create a new `VisualizationCreationDialog` with a callback function.
 
         Args:
             callback (Callable): Callback function that is called
-                with argument 1 being the prompt the user wishes to
-                use and argument 2 being the name of the metric that
-                should be used.
+                with a single argument containing a dictionary with
+                all the properties.
         """
 
         super().__init__()
 
-        self.setWindowTitle("Create new word importance visualization")
+        self.setWindowTitle(f"Create new {visualization_name} visualization")
 
-        layout = QVBoxLayout()
+        self.__layout__ = QVBoxLayout()
+        self.setLayout(self.__layout__)
 
         self.__callback = callback
+        self.__properties__ = {}
 
-        # Prompt line with a text input for the prompt
-        prompt_line_layout = QHBoxLayout()
-        prompt_line_layout.addWidget(QLabel("Prompt: "))
-        self.__prompt = QLineEdit()
-        prompt_line_layout.addWidget(self.__prompt)
-        prompt_line = QWidget()
-        prompt_line.setLayout(prompt_line_layout)
-
-        # Metric line with a dropdown for the metrics available
-        metric_line_layout = QHBoxLayout()
-        metric_line_layout.addWidget(QLabel("Metric: "))
-        self.__metric_dropdown = QComboBox()
-        self.__metric_dropdown.addItems(["Generation Shapley", "Embedding Shapley"])
-        metric_line_layout.addWidget(self.__metric_dropdown)
-        metric_line = QWidget()
-        metric_line.setLayout(metric_line_layout)
+    def exec(self):
+        """
+        Execute this `VisualizationCreationDialog`, showing it to the user.
+        """
 
         # The start button, which starts the visualization
-        self.__start_button = QPushButton("Start")
-        self.__start_button.clicked.connect(self.__start)
+        start_button = QPushButton("Start")
+        start_button.clicked.connect(self.__start)
+        self.__layout__.addWidget(start_button)
 
-        layout.addWidget(prompt_line)
-        layout.addWidget(metric_line)
-        layout.addWidget(self.__start_button)
+        return super().exec()
 
-        self.setLayout(layout)
+    def add_line_edit(self, name: str, identifier: str, default: str = ""):
+        """
+        Add a new line edit to this dialog.
+
+        Args:
+            name (str): The name that should be shown before this line edit.
+            identifier (str): The identifier that will be used for storing
+                the `QLineEdit` for use later.
+            default (str): The default text that this line edit should show.
+        """
+
+        line_layout = QHBoxLayout()
+        line_layout.addWidget(QLabel(f"{name}: "))
+        line_edit = QLineEdit()
+        line_edit.setText(default)
+        self.__properties__[identifier] = line_edit
+        line_layout.addWidget(self.__properties__[identifier])
+        line = QWidget()
+        line.setLayout(line_layout)
+        self.__layout__.addWidget(line)
+
+    def add_dropdown(self, name: str, options: list[str], identifier: str):
+        """
+        Add a new dropdown menu to this dialog.
+
+        Args:
+            name (str): The name that should be shown before this dropdown
+                menu.
+            options (list[str]): The different available options.
+            identifier (str): The identifier that will be used for storing
+                the `QComboBox` for use later.
+        """
+
+        line_layout = QHBoxLayout()
+        line_layout.addWidget(QLabel(f"{name}: "))
+        combo_box = QComboBox()
+        combo_box.addItems(options)
+        self.__properties__[identifier] = combo_box
+        line_layout.addWidget(self.__properties__[identifier])
+        line = QWidget()
+        line.setLayout(line_layout)
+        self.__layout__.addWidget(line)
+
+    def add_toggle(self, name: str, identifier: str):
+        """
+        Add a new togglable check box to this dialog.
+
+        Args:
+            name (str): The name that should be shown before this
+                togglable check box.
+            identifier (str): The identifier that will be used for
+                storing the `QCheckBox` for use later.
+        """
+
+        line_layout = QHBoxLayout()
+        line_layout.addWidget(QLabel(f"{name}: "))
+        check_box = QCheckBox()
+        self.__properties__[identifier] = check_box
+        line_layout.addWidget(self.__properties__[identifier])
+        line = QWidget()
+        line.setLayout(line_layout)
+        self.__layout__.addWidget(line)
 
     def __start(self):
         """
         Called when the 'start' button is pressed. Calls the callback
-        function with the prompt and the metric name as arguments,
+        function with the properties dictionary as an argument,
         closing this box in the process.
         """
 
-        self.__callback(self.__prompt.text(), self.__metric_dropdown.currentText())
+        self.__callback(self.__properties__)
         self.close()
 
 
@@ -178,7 +236,7 @@ class VisualizationsScreen(QWidget):
             "Unit Importance",
             "See which parts of a prompt can be removed",
             "explore/assets/unit_importance_icon.png",
-            self.__token_importance,
+            self.__unit_importance__,
         )
         grid_layout.addWidget(token_importance_button, 0, 0)
 
@@ -186,7 +244,7 @@ class VisualizationsScreen(QWidget):
             "Temperature Impact",
             "See how the temperature parameter impacts model performance",
             "explore/assets/temperature_impact_icon.png",
-            None,
+            self.__temperature_impact__,
         )
         grid_layout.addWidget(temperature_impact_button, 0, 1)
 
@@ -194,7 +252,7 @@ class VisualizationsScreen(QWidget):
             "Sandbox",
             "See how model outputs are generated by using your own settings",
             "explore/assets/sandbox_icon.png",
-            None,
+            self.__sandbox__,
         )
         grid_layout.addWidget(sandbox_button, 1, 0)
 
@@ -203,32 +261,172 @@ class VisualizationsScreen(QWidget):
 
         self.setLayout(layout)
 
-    def __token_importance(self):
+    def __unit_importance__(self):
         """
-        Called when the option for seeing the token importance visualization
+        Called when the option for seeing the unit importance visualization
         is selected
         """
 
-        dialog = WordImportanceDialog(self.__start_visualization)
+        dialog = VisualizationCreationDialog(
+            callback=self.__start_unit_importance__,
+            visualization_name="unit importance",
+        )
+        dialog.add_line_edit("Prompt", "prompt")
+        dialog.add_line_edit("System Prompt", "system_prompt")
+        dialog.add_dropdown(
+            "Importance Metric", ["Inverse Cosine", "Shapley"], "importance_metric"
+        )
+        dialog.add_dropdown("Calculation", ["Generation", "Embedding"], "calculation")
+        dialog.add_dropdown(
+            "Unit Type", ["Segment", "Word", "Sentence", "Token"], "unit_type"
+        )
+        dialog.add_line_edit("Sampling Ratio", "sampling_ratio")
+        dialog.add_toggle(
+            "Calculate Perplexity Difference", "calculate_perplexity_difference"
+        )
+        dialog.add_toggle("Test System Prompt", "test_system_prompt")
+        dialog.add_line_edit("Similarity Threshold", "similarity_threshold")
         dialog.exec()
 
-    def __start_visualization(self, prompt, metric):
+    def __temperature_impact__(self):
         """
-        Start the visualization for a given prompt and metric.
+        Called when the option for seeing the temperature impact visualization
+        is selected
+        """
+
+        dialog = VisualizationCreationDialog(
+            callback=self.__start_temperature_impact__,
+            visualization_name="temperature impact",
+        )
+        dialog.add_line_edit("Prompt", "prompt")
+        dialog.add_line_edit("k", "k", default="5")
+        dialog.add_line_edit("System Prompt", "system_prompt")
+        dialog.add_line_edit("Start", "start", default="0.0")
+        dialog.add_line_edit("End", "end", default="1.0")
+        dialog.add_toggle("Show alternative tokens", "alternative_tokens")
+        dialog.exec()
+
+    def __sandbox__(self):
+        """
+        Called when the option for seeing the sandbox visualization
+        is selected
+        """
+
+        dialog = VisualizationCreationDialog(
+            callback=self.__start_sandbox__, visualization_name="sandbox"
+        )
+        dialog.add_line_edit("Prompt", "prompt")
+        dialog.add_line_edit("System Prompt", "system_prompt")
+        dialog.add_line_edit("Temperature", "temperature", default="0.7")
+        dialog.exec()
+
+    def __start_unit_importance__(self, properties: dict[str, QWidget]):
+        """
+        Callback function for starting the unit importance visualization.
 
         Args:
-            prompt (str): The prompt that the visualization should be
-                shown for.
-            metric (str): The name of the metric that should be
-                visualized.
+            properties (dict[str, QWidget]): The properties passed when the
+                callback function is called.
         """
 
-        if metric == "Generation Shapley":
-            vis = self.__conn.unit_importance(prompt)
-        elif metric == "Embedding Shapley":
-            vis = self.__conn.unit_importance(prompt)
+        prompt = properties["prompt"].text()
+        system_prompt = properties["system_prompt"].text()
+        system_prompt = None if len(system_prompt) == 0 else system_prompt
+        importance_metric_selected = properties["importance_metric"].currentText()
+
+        if importance_metric_selected == "Inverse Cosine":
+            importance_metric = ImportanceMetric.INVERSE_COSINE
+        elif importance_metric_selected == "Shapley":
+            importance_metric = ImportanceMetric.SHAPLEY
+
+        calculation_selected = properties["calculation"].currentText()
+
+        if calculation_selected == "Generation":
+            calculation = ImportanceCalculation.GENERATION
+        elif calculation_selected == "Embedding":
+            calculation = ImportanceCalculation.EMBEDDING
+
+        unit_type_selected = properties["unit_type"].currentText()
+
+        if unit_type_selected == "Segment":
+            unit_type = UnitType.SEGMENT
+        elif unit_type_selected == "Word":
+            unit_type = UnitType.WORD
+        elif unit_type_selected == "Sentence":
+            unit_type = UnitType.SENTENCE
+        elif unit_type_selected == "Token":
+            unit_type = UnitType.TOKEN
+
+        sampling_ratio = properties["sampling_ratio"].text()
+        sampling_ratio = 0.0 if len(sampling_ratio) == 0 else float(sampling_ratio)
+        use_perplexity_difference = properties[
+            "calculate_perplexity_difference"
+        ].isChecked()
+        test_system_prompt = properties["test_system_prompt"].isChecked()
+        similarity_threshold = properties["similarity_threshold"].text()
+        similarity_threshold = (
+            0.1 if len(similarity_threshold) == 0 else float(similarity_threshold)
+        )
+
+        vis = self.__conn.unit_importance(
+            prompt,
+            system_prompt,
+            importance_metric,
+            calculation,
+            unit_type,
+            sampling_ratio,
+            use_perplexity_difference,
+            test_system_prompt,
+            similarity_threshold,
+        )
+        self.__start__(vis)
+
+    def __start_temperature_impact__(self, properties: dict[str, QWidget]):
+        """
+        Callback function for starting the temperature impact visualization.
+
+        Args:
+            properties (dict[str, QWidget]): The properties passed when the
+                callback function is called.
+        """
+
+        prompt = properties["prompt"].text()
+        k = int(properties["k"].text())
+        system_prompt = properties["system_prompt"].text()
+        system_prompt = None if len(system_prompt) == 0 else system_prompt
+        start = float(properties["start"].text())
+        end = float(properties["end"].text())
+        alternative_tokens = properties["alternative_tokens"].isChecked()
+
+        vis = self.__conn.k_temperature_sampling(
+            prompt, k, system_prompt, start, end, alternative_tokens
+        )
+        self.__start__(vis)
+
+    def __start_sandbox__(self, properties: dict[str, QWidget]):
+        """
+        Callback function for starting the sandbox visualization.
+
+        Args:
+            properties (dict[str, QWidget]): The properties passed when the
+                callback function is called.
+        """
+
+        prompt = properties["prompt"].text()
+        system_prompt = properties["system_prompt"].text()
+        system_prompt = None if len(system_prompt) == 0 else system_prompt
+        temperature = float(properties["temperature"].text())
+        vis = self.__conn.sandbox(prompt, system_prompt, temperature)
+        self.__start__(vis)
+
+    def __start__(self, vis: Visualizer):
+        """
+        Render a given visualization in this window.
+
+        Args:
+            vis (Visualizer): The visualization that should be rendered
+        """
 
         web_view = QWebEngineView()
         web_view.setHtml(vis.get_source())
-
         self.parentWidget().setCentralWidget(web_view)
