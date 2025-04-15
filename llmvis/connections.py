@@ -547,6 +547,12 @@ class Connection(abc.ABC):
             for i in range(len(outputs))
         ]
 
+        additional_args = {}
+
+        if importance_metric == ImportanceMetric.INVERSE_COSINE:
+            additional_args["min_value"] = 0.0
+            additional_args["max_value"] = 1.0
+
         table_heatmap = TableHeatmap(
             contents=table_contents,
             headers=[
@@ -556,15 +562,10 @@ class Connection(abc.ABC):
                 # "Shapley Value",
                 "Cosine Difference",
             ],
-            weights=[0.0] + vals,
+            weights=[None] + vals,
+            **additional_args,
         )
         table_heatmap.set_comments(self.__get_info__())
-
-        additional_args = {}
-
-        if importance_metric == ImportanceMetric.INVERSE_COSINE:
-            additional_args["min_value"] = 0.0
-            additional_args["max_value"] = 1.0
 
         importance_metric_comment = "Importance Metric: " + importance_metric
 

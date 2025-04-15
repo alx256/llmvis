@@ -1,4 +1,5 @@
 import abc
+import math
 import re
 from numpy.typing import ArrayLike
 from typing import Optional
@@ -420,7 +421,12 @@ class TableHeatmap(Visualization):
     GREY_VALUE = 61
 
     def __init__(
-        self, headers: list[str], contents: list[list[str]], weights: list[int] = []
+        self,
+        headers: list[str],
+        contents: list[list[str]],
+        weights: list[float] = [],
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None,
     ):
         """
         Create a new `TableHeatmap` for some provided content and weights.
@@ -432,10 +438,14 @@ class TableHeatmap(Visualization):
             contents (list[list[str]]): A list where each element represents a row,
                 containing another list with the content that should be contained in
                 the table.
-            weights (list[int]): A list where each integer corresponds to the weight for
+            weights (list[float]): A list where each float corresponds to the weight for
                 the corresponding row. If no weight is specified for a row, it will be
                 colored a default grey color. Providing an empty list or not giving a
                 value will give a table without any coloring.
+            min_value (Optional[float]): The custom minimum value of all the weights.
+                Leave as `None` to automatically detect this.
+            max_value (Optional[float]): The custom maximum value of all the weights.
+                Leave as `None` to automatically detect this.
 
         Raises:
             `ValueError` if the lengths of the provided arguments are incorrect or if the table is empty.
@@ -455,10 +465,12 @@ class TableHeatmap(Visualization):
         self.__name__ = "Table Heatmap"
 
         # Explanation for doing this explained in TextHeatmap above
-        if len(weights) > 0:
-            largest_abs = max(abs(max(weights)), abs(min(weights)))
-            self.__max_weight = largest_abs
-            self.__min_weight = -largest_abs
+        self.__max_weight = max_value or max(
+            weights, key=lambda x: x if x is not None else -math.inf
+        )
+        self.__min_weight = min_value or min(
+            weights, key=lambda x: x if x is not None else math.inf
+        )
 
     def get_html(self):
         html = "<table>"
@@ -480,7 +492,9 @@ class TableHeatmap(Visualization):
             html += "<tr>"
             for entry in content:
                 bg = self.__get_background_color(
-                    None if i >= len(self.__weights) else self.__weights[i]
+                    None if i >= len(self.__weights) else self.__weights[i],
+                    self.__min_weight,
+                    self.__max_weight,
                 )
                 html += f'<td style="background-color: {bg};">'
                 html += '<div class="llmvis-text">'
@@ -496,42 +510,53 @@ class TableHeatmap(Visualization):
     def get_js(self):
         return ""
 
-    def __get_background_color(self, weight: Optional[int]) -> str:
+    def __get_background_color(
+        self, weight: Optional[float], min_weight: float, max_weight: float
+    ) -> str:
         """
         Calculate the necessary background color for a row
         based on a provided weight.
 
         Args:
-            weight (int): The weight that should be used for
+            weight (float): The weight that should be used for
                 calculating the background color.
+            min_weight (float): The minimum of all the weights.
+            max_weight (float): The maximum of all the weights.
 
         Returns:
             A string representing the CSS `background-color`
             property that should be used for coloring the row
             with this weight.
         """
+        palette = [[48, 147, 38], [180, 157, 46], [176, 46, 52]]
 
         if weight is None:
             return f"rgb({self.GREY_VALUE}, {self.GREY_VALUE}, {self.GREY_VALUE})"
 
-        rgb = [0.0, 0.0, 0.0]
+        normalized_weight = (weight - min_weight) / (max_weight - min_weight)
+        index = (
+            normalized_weight * (len(palette) - 1)
+            if max_weight != min_weight
+            else (len(palette) - 1) / 2
+        )
 
-        if weight < 0.0:
-            other_vals = weight / self.__min_weight if self.__min_weight != 0 else 0
-            rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
-            rgb = [
-                rgb_value - (rgb_value * other_vals),
-                rgb_value - (rgb_value * other_vals),
-                rgb_value,
-            ]
-        else:
-            other_vals = weight / self.__max_weight if self.__max_weight != 0 else 0
-            rgb_value = self.GREY_VALUE + ((255 - self.GREY_VALUE) * other_vals)
-            rgb = [
-                rgb_value,
-                rgb_value - (rgb_value * other_vals),
-                rgb_value - (rgb_value * other_vals),
-            ]
+        if index % 1 == 0:
+            # Nicely falls onto a usable index
+            return f"rgb({palette[int(index)][0]}, {palette[int(index)][1]}, {palette[int(index)][2]})"
+
+        if index > len(palette) - 1:
+            return f"rgb({palette[-1][0]}, {palette[-1][1]}, {palette[-1][2]})"
+
+        rgb = [0, 0, 0]
+        index_lower = math.floor(index)
+        index_upper = index_lower + 1
+        diff = index - index_lower
+        rgb_lower = palette[index_lower]
+        rgb_upper = palette[index_upper]
+
+        rgb[0] = (rgb_upper[0] - rgb_lower[0]) * diff + rgb_lower[0]
+        rgb[1] = (rgb_upper[1] - rgb_lower[1]) * diff + rgb_lower[1]
+        rgb[2] = (rgb_upper[2] - rgb_lower[2]) * diff + rgb_lower[2]
 
         return f"rgb({rgb[0]}, {rgb[1]}, {rgb[2]})"
 
