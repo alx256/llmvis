@@ -539,7 +539,11 @@ class Connection(abc.ABC):
         table_contents = [
             [
                 formatted_combinations[i],
-                outputs[i],
+                (
+                    np.array2string(outputs[i], threshold=5)
+                    if isinstance(outputs[i], np.ndarray)
+                    else outputs[i]
+                ),
                 missing_terms_strs[i - 1] if i > 0 else "N/A",
                 # str(shapley_vals[i - 1]) if i > 0 else "N/A",
                 str(similarities[i - 1]) if i > 0 else "N/A",
