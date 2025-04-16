@@ -260,7 +260,7 @@ function updateAlternativeTokens(ctx, candidateTokenGroups, selectedIndices, fal
     const Y_SPACING = 20;
     const FONT_SIZE = 35;
     const CONNECTOR_SPACING = 12;
-    const MAX_GROUPS = 128;
+    const MAX_GROUPS = 64;
     const BUTTON_PLACEMENT_MARGIN = 14;
 
     var yPosition;
