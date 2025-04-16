@@ -492,6 +492,7 @@ class Connection(abc.ABC):
             else 0.0
         )
         perplexity_difference_units = []
+        max_perplexity_difference = 0
         table_contents = []
 
         for i in range(len(unit_texts)):
@@ -535,6 +536,9 @@ class Connection(abc.ABC):
                         [("Perplexity Difference", perplexity_difference)],
                     )
                 )
+
+                if abs(perplexity_difference) > max_perplexity_difference:
+                    max_perplexity_difference = abs(perplexity_difference)
 
         table_contents = [
             [
@@ -591,6 +595,8 @@ class Connection(abc.ABC):
                 perplexity_difference_units,
                 color_scheme=HeatmapColorScheme.GREEN_YELLOW_RED,
                 relative_coloring=True,
+                max_value=max_perplexity_difference,
+                min_value=-max_perplexity_difference,
             )
             perplexity_difference_heatmap.set_name("Perplexity Difference Text Heatmap")
             perplexity_difference_heatmap.set_comments(self.__get_info__())
