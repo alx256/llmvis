@@ -465,12 +465,13 @@ class TableHeatmap(Visualization):
         self.__name__ = "Table Heatmap"
 
         # Explanation for doing this explained in TextHeatmap above
-        self.__max_weight = max_value or max(
-            weights, key=lambda x: x if x is not None else -math.inf
-        )
-        self.__min_weight = min_value or min(
-            weights, key=lambda x: x if x is not None else math.inf
-        )
+        if len(weights) > 0:
+            self.__max_weight = max_value or max(
+                weights, key=lambda x: x if x is not None else -math.inf
+            )
+            self.__min_weight = min_value or min(
+                weights, key=lambda x: x if x is not None else math.inf
+            )
 
     def get_html(self):
         html = "<table>"
@@ -493,8 +494,8 @@ class TableHeatmap(Visualization):
             for entry in content:
                 bg = self.__get_background_color(
                     None if i >= len(self.__weights) else self.__weights[i],
-                    self.__min_weight,
-                    self.__max_weight,
+                    None if i >= len(self.__weights) else self.__min_weight,
+                    None if i >= len(self.__weights) else self.__max_weight,
                 )
                 html += f'<td style="background-color: {bg};">'
                 html += '<div class="llmvis-text">'
