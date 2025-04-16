@@ -87,8 +87,6 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
                 var word = words[k];
 
                 const wordMeasurement = ctx.measureText(word);
-                const ascent = wordMeasurement.fontBoundingBoxAscent;
-                const descent = wordMeasurement.fontBoundingBoxDescent;
                 const fontWidth = wordMeasurement.width;
 
                 ctx.fillStyle = item.color;
@@ -102,10 +100,12 @@ function drawTooltip(contents, xPos, yPos, width, height, fontSize, ctx) {
                         word = word.substring(0, word.length - 1);
                     }
 
-                    words.splice(k + 1, 0, remaining);
-                    words[k] = word;
-                    k -= 1;
-                    continue;
+                    if (remaining != "") {
+                        words.splice(k + 1, 0, remaining);
+                        words[k] = word;
+                        k -= 1;
+                        continue;
+                    }
                 } else if (textXPos + fontWidth + HORIZONTAL_SPACING > FREE_SPACE) {
                     // Text has gone out of bounds- wrap it around to the next line
                     textXPos = BOX_RADIUS / 2;
