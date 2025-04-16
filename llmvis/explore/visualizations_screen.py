@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QErrorMessage,
     QGridLayout,
     QWidget,
     QDialog,
@@ -216,13 +217,20 @@ class VisualizationsScreen(QWidget):
         """
 
         super().__init__()
+        self.__vis__ = None
 
         if data["service"] == "Ollama":
             self.__conn = OllamaConnection(data["model"])
         elif data["service"] == "watsonx.ai":
             self.__conn = WatsonXConnection(
-                data["api_key"], data["project_id"], data["model"], data["location"]
+                data["api_key"],
+                data["project_id"],
+                data["model"],
+                data["location"],
             )
+
+        self.__error_msg__ = QErrorMessage()
+        self.__error_msg__.setWindowTitle("Error occured")
 
         layout = QVBoxLayout()
         title = QLabel("What do you want to explore?")
@@ -255,6 +263,14 @@ class VisualizationsScreen(QWidget):
             self.__sandbox__,
         )
         grid_layout.addWidget(sandbox_button, 1, 0)
+
+        ai_analytics_button = VisualizationButton(
+            "AI Analytics",
+            "Use AI to extract new insights from the most recently run metric (if supported)",
+            "explore/assets/ai_analytics_icon.png",
+            self.__ai_analytics__,
+        )
+        grid_layout.addWidget(ai_analytics_button, 1, 1)
 
         grid.setLayout(grid_layout)
         layout.addWidget(grid)
@@ -320,6 +336,20 @@ class VisualizationsScreen(QWidget):
         dialog.add_line_edit("Temperature", "temperature", default="0.7")
         dialog.exec()
 
+    def __ai_analytics__(self):
+        """
+        Called when the option for seeing the AI analytics visualization is
+        selected.
+        """
+
+        try:
+            self.__vis__ = self.__conn.ai_analytics()
+            self.__start__()
+        except RuntimeError:
+            self.__error_msg__.showMessage(
+                "Tried to generate AI analytics, but the previous visualization does not support it!"
+            )
+
     def __start_unit_importance__(self, properties: dict[str, QWidget]):
         """
         Callback function for starting the unit importance visualization.
@@ -368,7 +398,7 @@ class VisualizationsScreen(QWidget):
             0.1 if len(similarity_threshold) == 0 else float(similarity_threshold)
         )
 
-        vis = self.__conn.unit_importance(
+        self.__vis__ = self.__conn.unit_importance(
             prompt,
             system_prompt,
             importance_metric,
@@ -379,7 +409,7 @@ class VisualizationsScreen(QWidget):
             test_system_prompt,
             similarity_threshold,
         )
-        self.__start__(vis)
+        self.__start__()
 
     def __start_temperature_impact__(self, properties: dict[str, QWidget]):
         """
@@ -398,10 +428,10 @@ class VisualizationsScreen(QWidget):
         end = float(properties["end"].text())
         alternative_tokens = properties["alternative_tokens"].isChecked()
 
-        vis = self.__conn.k_temperature_sampling(
+        self.__vis__ = self.__conn.k_temperature_sampling(
             prompt, k, system_prompt, start, end, alternative_tokens
         )
-        self.__start__(vis)
+        self.__start__()
 
     def __start_sandbox__(self, properties: dict[str, QWidget]):
         """
@@ -416,17 +446,16 @@ class VisualizationsScreen(QWidget):
         system_prompt = properties["system_prompt"].text()
         system_prompt = None if len(system_prompt) == 0 else system_prompt
         temperature = float(properties["temperature"].text())
-        vis = self.__conn.sandbox(prompt, system_prompt, temperature)
-        self.__start__(vis)
+        self.__vis__ = self.__conn.sandbox(prompt, system_prompt, temperature)
+        self.__start__()
 
-    def __start__(self, vis: Visualizer):
+    def __start__(self):
         """
         Render a given visualization in this window.
-
-        Args:
-            vis (Visualizer): The visualization that should be rendered
         """
 
-        web_view = QWebEngineView()
-        web_view.setHtml(vis.get_source())
-        self.parentWidget().setCentralWidget(web_view)
+        self.__web_view__ = QWebEngineView()
+        self.__web_view__.setHtml(self.__vis__.get_source())
+        self.__web_view__.setWindowTitle("LLMVis Visualizer")
+        self.__web_view__.resize(1280, 720)
+        self.__web_view__.show()

@@ -367,7 +367,10 @@ class HomeScreen(QWidget):
                 the user's device.
         """
 
-        self.parentWidget().setCentralWidget(VisualizationsScreen(data))
+        self.__visualizations_screen__ = VisualizationsScreen(data)
+        self.__visualizations_screen__.setWindowTitle("LLMVis Explore Dashboard")
+        self.__visualizations_screen__.resize(1280, 720)
+        self.__visualizations_screen__.show()
 
     def __show_new_connection_dialog(self):
         """
