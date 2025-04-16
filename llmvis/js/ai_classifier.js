@@ -91,7 +91,8 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
         STROKE_COLOR,
         categoricalData(points),
         AxisPosition.BOTTOM,
-        xLabel
+        xLabel,
+        LocalTickPosition.BEGINNING
     )
 
     // Y Axis
@@ -99,7 +100,7 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
         maxClassTextMeasurement,
         AXIS_PADDING_Y,
         STROKE_COLOR,
-        categoricalData(classifiedData.map((d) => d[0])),
+        categoricalData(classifiedData.map((d) => d[0]).reverse()),
         AxisPosition.LEFT,
         yLabel
     )
@@ -169,15 +170,19 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
                 connectors += 1;
             }
             
-            const RECT_X = (SHOULD_CONNECT) ? lastX : X + RECT_MARGINS;
-            const RECT_Y = yPosition;
-            const RECT_WIDTH = X_AXIS_SEGMENT_WIDTH*connectors;
-            const RECT_HEIGHT = Y_AXIS_SEGMENT_HEIGHT - RECT_MARGINS;
+            var rectX = (SHOULD_CONNECT) ? lastX : X + RECT_MARGINS;
+            var rectY = yPosition;
+            var rectWidth = X_AXIS_SEGMENT_WIDTH*connectors;
+            var rectHeight = Y_AXIS_SEGMENT_HEIGHT - RECT_MARGINS;
+
+            if (rectX + rectWidth > AXIS_END_POINT_X) {
+                rectWidth = AXIS_END_POINT_X - rectX;
+            }
 
             CLASSIFIER_CTX.beginPath();
             CLASSIFIER_CTX.strokeStyle = RECT_COLOR;
             CLASSIFIER_CTX.fillStyle = RECT_COLOR;
-            CLASSIFIER_CTX.roundRect(RECT_X, RECT_Y, RECT_WIDTH, RECT_HEIGHT, RECT_RADIUS);
+            CLASSIFIER_CTX.roundRect(rectX, rectY, rectWidth, rectHeight, RECT_RADIUS);
             CLASSIFIER_CTX.fill();
             CLASSIFIER_CTX.stroke();
             CLASSIFIER_CTX.strokeStyle = STROKE_COLOR;
@@ -186,7 +191,7 @@ function drawAiClassifier(canvasId, classifiedData, points, xLabel, yLabel) {
             lastIndex = INDEX;
 
             if (!SHOULD_CONNECT) {
-                lastX = RECT_X;
+                lastX = rectX;
                 connectors = 1;
             }
         }
