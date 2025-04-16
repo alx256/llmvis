@@ -157,11 +157,16 @@ function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spa
         const WORDS = unit.text.split(" ");
         var height = undefined;
         var lineWidth = 0;
-
+        var firstWord = true;
         ctx.font = font;
 
         for (var i = 0; i < WORDS.length; i++) {
             const WORD = WORDS[i];
+
+            if (WORD == "") {
+                continue;
+            }
+
             // Calculate (without drawing) the size of the unit
             const measurements = ctx.measureText(WORD);
             const ascent = measurements.fontBoundingBoxAscent;
@@ -172,7 +177,7 @@ function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spa
             const adjusted_font_height = margin * 2 + font_height;
 
             if (widthSum + adjusted_font_width > canvas.width) {
-                if (WORDS.length > 1 && i < WORDS.length - 1) {
+                if (!firstWord) {
                     rectPositions.push({
                         unit: unit,
                         x: lastRectStart,
@@ -207,6 +212,8 @@ function calculateCanvasSize(ctx, canvas, units, xInit, yInit, font, margin, spa
             if (height == undefined) {
                 height = adjusted_font_height;
             }
+
+            firstWord = false;
         }
 
         rectPositions.push({
