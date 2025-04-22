@@ -384,7 +384,7 @@ class Connection(abc.ABC):
                 if calculation == ImportanceCalculation.GENERATION:
                     response = self.__make_request__(
                         prompt if test_system_prompt else modified_prompt,
-                        (system_prompt if not test_system_prompt else modified_prompt),
+                        system_prompt if not test_system_prompt else modified_prompt,
                         temperature=0.0,
                         alternative_tokens=use_perplexity_difference,
                     )
@@ -439,7 +439,11 @@ class Connection(abc.ABC):
 
             if calculation == ImportanceCalculation.GENERATION:
                 vectors, responses, outputs = self.__batch_generate__(
-                    system_prompt, use_perplexity_difference, combinations
+                    prompt,
+                    system_prompt,
+                    use_perplexity_difference,
+                    test_system_prompt,
+                    combinations,
                 )
             elif calculation == ImportanceCalculation.EMBEDDING:
                 vectors = np.array(self.__calculate_embeddings__(combinations))
@@ -1006,18 +1010,24 @@ class Connection(abc.ABC):
 
     def __batch_generate__(
         self,
+        prompt: str,
         system_prompt: str,
         alternative_tokens: bool,
+        test_system_prompt: bool,
         requests: list[str],
     ) -> list[list[float]]:
         """
         Calculate the TF-IDF vectors for a batch of requests.
 
         Args:
+            prompt (str): The full, unmodified prompt that should
+                be used for making requests.
             system_prompt (str): The system prompt that should be
                 used for making requests.
             alternative_tokens (bool): Set this to `True` to get
                 alternative tokens data (if supported).
+            test_system_prompt (bool): Set this to `True` to test
+                the system prompt.
             requests (list[str]): A list of strings containing the
                 requests that should be made.
 
@@ -1030,10 +1040,9 @@ class Connection(abc.ABC):
         outputs = []
 
         for i, combination in enumerate(requests):
-            request = self.__flatten_words(combination, delimiter=" ")
             response = self.__make_request__(
-                request,
-                system_prompt,
+                prompt if test_system_prompt else combination,
+                system_prompt if not test_system_prompt else combination,
                 temperature=0.0,
                 alternative_tokens=alternative_tokens,
             )
