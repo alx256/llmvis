@@ -12,6 +12,7 @@ setup(
     package_data={
         "llmvis": ["assets/fonts/*", "js/*"],
         "llmvis.visualization": ["css/*.css", "html/*.html", "js/*.js"],
+        "llmvis.explore": ["assets/*.png"],
     },
     install_requires=[
         "ollama",
