@@ -534,7 +534,11 @@ class TableHeatmap(Visualization):
         if weight is None:
             return f"rgb({self.GREY_VALUE}, {self.GREY_VALUE}, {self.GREY_VALUE})"
 
-        normalized_weight = (weight - min_weight) / (max_weight - min_weight)
+        normalized_weight = (
+            0
+            if max_weight - min_weight == 0
+            else (weight - min_weight) / (max_weight - min_weight)
+        )
         index = (
             normalized_weight * (len(palette) - 1)
             if max_weight != min_weight
