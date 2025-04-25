@@ -428,7 +428,7 @@ class VisualizationsScreen(QWidget):
         end = float(properties["end"].text())
         alternative_tokens = properties["alternative_tokens"].isChecked()
 
-        self.__vis__ = self.__conn.k_temperature_sampling(
+        self.__vis__ = self.__conn.temperature_impact(
             prompt, k, system_prompt, start, end, alternative_tokens
         )
         self.__start__()

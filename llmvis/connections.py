@@ -88,7 +88,7 @@ MEDIATION_ATTEMPTS = 5
 # was.
 WORD_IMPORTANCE_GEN_SHAPLEY = 0
 WORD_IMPORTANCE_EMBED_SHAPLEY = 1
-K_TEMPERATURE_SAMPLING = 2
+TEMPERATURE_IMPACT = 2
 
 
 class ImportanceMetric:
@@ -631,7 +631,7 @@ class Connection(abc.ABC):
 
         return Visualizer(visualizations)
 
-    def k_temperature_sampling(
+    def temperature_impact(
         self,
         prompt: str,
         k: int,
@@ -785,7 +785,7 @@ class Connection(abc.ABC):
         )
         line_chart.set_comments(self.__get_info__())
 
-        Connection.__last_metric_id__ = K_TEMPERATURE_SAMPLING
+        Connection.__last_metric_id__ = TEMPERATURE_IMPACT
         Connection.__last_metric_data__ = {
             "samples": samples,
             "temperatures": temperatures,
@@ -848,7 +848,7 @@ class Connection(abc.ABC):
         it is supported.
 
         #### Supported Metrics
-        - **K Temperature Sampling**: Can be used to show an AI-generated
+        - **Temperature Impact**: Can be used to show an AI-generated
             graph classifying each temperature value into a number of
             classes and AI-generated hallucination detection.
 
@@ -865,16 +865,16 @@ class Connection(abc.ABC):
         if Connection.__last_metric_id__ == -1:
             raise RuntimeError("Cannnot show AI analytics if no metrics have been run!")
 
-        if Connection.__last_metric_id__ == K_TEMPERATURE_SAMPLING:
-            return self.__k_temperature_sampling_ai_analytics__()
+        if Connection.__last_metric_id__ == TEMPERATURE_IMPACT:
+            return self.__temperature_impact_ai_analytics__()
 
         raise RuntimeError(
             "Tried to show AI analytics for a metric that does not support this!"
         )
 
-    def __k_temperature_sampling_ai_analytics__(self) -> Visualizer:
+    def __temperature_impact_ai_analytics__(self) -> Visualizer:
         """
-        AI Analytics for K Temperature Sampling. Generates visualizations for
+        AI Analytics for Temperature Impact. Generates visualizations for
         classifying temperature values into common classes as well as LLM-powered
         hallucination detection.
 
