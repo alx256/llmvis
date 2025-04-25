@@ -50,7 +50,9 @@ class Visualizer:
 
         if is_jupyter:
             # Jupyter Notebook
-            display(HTML(full_html))
+            # Set isInJupyterNotebook variable to disable resizing since this
+            # breaks Jupyter notebooks.
+            display(HTML(full_html + "<script>isInJupyterNotebook=true;</script>"))
         else:
             # Write the HTML data to a file first so we can just open
             # this using the browser
