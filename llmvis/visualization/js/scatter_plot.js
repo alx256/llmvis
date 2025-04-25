@@ -99,7 +99,7 @@ function drawScatterPlot(canvasId, scatterPlotPlots, xLabel, yLabel) {
     for (var i = 0; i < scatterPlotPlots.length; i++) {
         const PLOT = scatterPlotPlots[i];
         const TRANSFORMED = transformedPlots[i];
-        const RGB = calculateRgb(1, 2, 0);
+        const RGB = PLOT.color;
 
         SCATTER_PLOT_CTX.beginPath();
         SCATTER_PLOT_CTX.strokeStyle = RGB;

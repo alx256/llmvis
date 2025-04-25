@@ -618,8 +618,9 @@ class Connection(abc.ABC):
                     Point(
                         reduced[i][0],
                         reduced[i][1],
-                        "Missing terms: "
+                        detail="Missing terms: "
                         + ("No missing terms" if i == 0 else missing_terms_strs[i - 1]),
+                        color="rgb(48, 147, 38)" if i == 0 else "rgb(180, 157, 46)",
                     )
                     for i in range(len(reduced))
                 ],

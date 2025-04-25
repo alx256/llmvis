@@ -76,7 +76,13 @@ class Point:
     that make use of both an x and a y axis.
     """
 
-    def __init__(self, x: float, y: float, detail: Optional[str] = None):
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        detail: Optional[str] = None,
+        color: str = "rgb(180, 157, 46)",
+    ):
         """
         Create a new `Point`.
 
@@ -86,11 +92,14 @@ class Point:
             detail (Optional[str]): The details that are associated with
                 this point (can be none), commonly used to include
                 additional information for tooltips.
+            color (str): The color that this point should be (if supported
+                by the visualization). Default is a yellow color.
         """
 
         self.x = x
         self.y = y
         self.detail = detail
+        self.color = color
 
     def get_js(self):
         """
@@ -106,6 +115,8 @@ class Point:
         js += f"y:{self.y}"
         if self.detail is not None:
             js += f',detail:"{escape_all(self.detail)}"'
+        if self.color is not None:
+            js += f',color:"{escape_all(self.color)}"'
         js += "}"
 
         return js
