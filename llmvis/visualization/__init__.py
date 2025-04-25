@@ -44,8 +44,7 @@ class Visualizer:
         environment, such as from a terminal).
         """
 
-        environment = str(type(get_ipython()))
-        is_jupyter = "zmqshell" in environment
+        is_jupyter = get_ipython() is not None
         full_html = self.get_html() + "<script>" + self.get_js() + "</script>"
 
         if is_jupyter:
