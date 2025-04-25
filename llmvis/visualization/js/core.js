@@ -317,7 +317,7 @@ function enableResizing(canvas, redrawFunc) {
  * - **CATEGORICAL**: Data belonging to a discrete number of
  * text or numerical categories.
  */
-const DataType = {
+var DataType = {
     CONTINUOUS: 0,
     CATEGORICAL: 1
 };
@@ -366,7 +366,7 @@ function categoricalData(values) {
  * - **TOP**: Axis drawn on the top side of the screen.
  * - **BOTTOM**: Axis drawn on the bottom side of the screen.
  */
-const AxisPosition = {
+var AxisPosition = {
     LEFT: 0,
     RIGHT: 1,
     TOP: 2,
@@ -389,7 +389,7 @@ const AxisPosition = {
  * beginning of the axis, while the last will be drawn at the
  * very end. 
  */
-const LocalTickPosition = {
+var LocalTickPosition = {
     AUTO: 0,
     BEGINNING: 1,
     CENTER: 2,

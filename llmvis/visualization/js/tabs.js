@@ -1,13 +1,13 @@
-const VISUALIZATION_CONTENT_AREAS = document.getElementsByClassName('llmvis-visualization-content');
-const TABS = document.getElementsByClassName('llmvis-tab');
+var visualizationContentAreas = document.getElementsByClassName('llmvis-visualization-content');
+var tabs = document.getElementsByClassName('llmvis-tab');
 
 // Use first visualization by default
 var activeVisualization = 0;
-TABS[activeVisualization].classList.add('selected');
+tabs[activeVisualization].classList.add('selected');
 
 // Hide all visualizations except the active one
-for (var i = 1; i < VISUALIZATION_CONTENT_AREAS.length; i++) {
-    VISUALIZATION_CONTENT_AREAS[i].style.display = 'none';
+for (var i = 1; i < visualizationContentAreas.length; i++) {
+    visualizationContentAreas[i].style.display = 'none';
 }
 
 /**
@@ -20,12 +20,12 @@ for (var i = 1; i < VISUALIZATION_CONTENT_AREAS.length; i++) {
  * `1` and so on.
  */
 function openVisualization(visualizationId) {
-    VISUALIZATION_CONTENT_AREAS[activeVisualization].style.display = 'none';
-    VISUALIZATION_CONTENT_AREAS[visualizationId].style.display = 'block';
+    visualizationContentAreas[activeVisualization].style.display = 'none';
+    visualizationContentAreas[visualizationId].style.display = 'block';
 
     // Select the tab
-    TABS[activeVisualization].classList.remove('selected');
-    TABS[visualizationId].classList.add('selected');
+    tabs[activeVisualization].classList.remove('selected');
+    tabs[visualizationId].classList.add('selected');
 
     activeVisualization = visualizationId;
 }
